@@ -37,10 +37,10 @@ export function middleware(req) {
   }
 
   // Protect the home (dashboard) route: verify token server-side when present
-    // TEMPORARY: allow access to dashboard ("/") for everyone, no login required
-    if (pathname === '/') {
-      return NextResponse.next()
-    }
+  // TEMPORARY: allow access to dashboard ("/") for everyone, no login required
+  if (pathname === '/') {
+    return NextResponse.next()
+  }
 
   return NextResponse.next()
 }

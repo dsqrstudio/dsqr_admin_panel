@@ -45,8 +45,11 @@ function PrimaryGraphicsSection() {
   const [selectedSub, setSelectedSub] = useState(PRIMARY_SUBS[0])
   const { showToast, ToastComponent } = useToast()
 
-  useEffect(() => {
-    // Fetch all home-page items from media-items API
+  // Fetch function for refresh
+  const fetchAll = () => {
+    setPrimaryLoading(true)
+    setStepsLoading(true)
+    setGalleryLoading(true)
     fetch(`${API_BASE_URL}/api/admin/media-items/category/home-page`, {
       credentials: 'include',
     })
@@ -63,10 +66,6 @@ function PrimaryGraphicsSection() {
             (item) => item.subsection === 'gallery-section'
           )
 
-          console.log('✅ Hero Section found:', primary.length, primary)
-          console.log('✅ Steps Animation found:', steps.length, steps)
-          console.log('✅ Gallery Section found:', gallery.length, gallery)
-
           setPrimaryItems(primary)
           setStepsItems(steps)
           setGalleryItems(gallery)
@@ -78,6 +77,10 @@ function PrimaryGraphicsSection() {
         setStepsLoading(false)
         setGalleryLoading(false)
       })
+  }
+
+  useEffect(() => {
+    fetchAll()
   }, [])
 
   const saveSection = async (itemsSetter, items) => {
@@ -99,7 +102,32 @@ function PrimaryGraphicsSection() {
 
       {selectedSub === 'Primary Images' && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-2">Primary Images</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold">Primary Images</h3>
+            <button
+              className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
+              onClick={fetchAll}
+              disabled={primaryLoading}
+              style={{
+                minWidth: 100,
+                width: 120,
+                height: 40,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span
+                style={{
+                  width: 80,
+                  textAlign: 'center',
+                  display: 'inline-block',
+                }}
+              >
+                {primaryLoading ? 'Refreshing...' : 'Refresh'}
+              </span>
+            </button>
+          </div>
           <p className="text-sm text-slate-500 mb-4">
             Upload key images used in the primary hero/graphics. Drag to
             reorder.
@@ -116,6 +144,8 @@ function PrimaryGraphicsSection() {
               allowAdd
               allowEdit
               allowDelete
+              allowMultiSelect
+              allowBulkDelete
             />
           )}
         </div>
@@ -123,9 +153,32 @@ function PrimaryGraphicsSection() {
 
       {selectedSub === 'Steps Animation Graphics' && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-2">
-            Steps Animation Graphics
-          </h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold">Steps Animation Graphics</h3>
+            <button
+              className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
+              onClick={fetchAll}
+              disabled={stepsLoading}
+              style={{
+                minWidth: 100,
+                width: 120,
+                height: 40,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span
+                style={{
+                  width: 80,
+                  textAlign: 'center',
+                  display: 'inline-block',
+                }}
+              >
+                {stepsLoading ? 'Refreshing...' : 'Refresh'}
+              </span>
+            </button>
+          </div>
           <p className="text-sm text-slate-500 mb-4">
             Upload images used for the steps animation section. Drag to reorder.
           </p>
@@ -141,6 +194,8 @@ function PrimaryGraphicsSection() {
               allowAdd
               allowEdit
               allowDelete
+              allowMultiSelect
+              allowBulkDelete
             />
           )}
         </div>
@@ -148,7 +203,32 @@ function PrimaryGraphicsSection() {
 
       {selectedSub === 'Image Gallery' && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-2">Image Gallery</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold">Image Gallery</h3>
+            <button
+              className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
+              onClick={fetchAll}
+              disabled={galleryLoading}
+              style={{
+                minWidth: 100,
+                width: 120,
+                height: 40,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span
+                style={{
+                  width: 80,
+                  textAlign: 'center',
+                  display: 'inline-block',
+                }}
+              >
+                {galleryLoading ? 'Refreshing...' : 'Refresh'}
+              </span>
+            </button>
+          </div>
           <p className="text-sm text-slate-500 mb-4">
             Upload images for the homepage gallery. Drag to reorder.
           </p>
@@ -164,6 +244,8 @@ function PrimaryGraphicsSection() {
               allowAdd
               allowEdit
               allowDelete
+              allowMultiSelect
+              allowBulkDelete
             />
           )}
         </div>
