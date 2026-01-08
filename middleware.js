@@ -37,30 +37,10 @@ export function middleware(req) {
   }
 
   // Protect the home (dashboard) route: verify token server-side when present
-  if (pathname === '/') {
-    if (!token && loggedInHeader !== '1') {
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
+    // TEMPORARY: allow access to dashboard ("/") for everyone, no login required
+    if (pathname === '/') {
+      return NextResponse.next()
     }
-    if (token) {
-      // Optional: validate token with backend to prevent stale/forged cookies
-      const API_BASE =
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-      return fetch(`${API_BASE}/api/auth/me`, {
-        headers: { cookie: `dsqr_token=${token}; Path=/` },
-      })
-        .then((r) => {
-          if (r.status === 200) return NextResponse.next()
-          url.pathname = '/login'
-          return NextResponse.redirect(url)
-        })
-        .catch(() => {
-          url.pathname = '/login'
-          return NextResponse.redirect(url)
-        })
-    }
-    return NextResponse.next()
-  }
 
   return NextResponse.next()
 }
