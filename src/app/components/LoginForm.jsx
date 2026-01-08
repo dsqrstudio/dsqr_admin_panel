@@ -38,6 +38,10 @@ export default function LoginForm() {
       try {
         sessionStorage.setItem('dsqr_logged_in', '1')
       } catch {}
+
+      // TEMPORARY: send a fetch with custom header to set dashboard access
+      fetch('/', { headers: { 'x-dsqr-logged-in': '1' } })
+
       window.location.href = '/'
     } catch (err) {
       setLoading(false)
