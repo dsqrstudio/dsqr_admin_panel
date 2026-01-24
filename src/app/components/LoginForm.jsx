@@ -29,23 +29,22 @@ export default function LoginForm() {
       })
 
       const data = await res.json()
-      setLoading(false)
-
-      console.log('[LoginForm] Login response', {
-        ok: res.ok,
-        data,
-        headers: Object.fromEntries(res.headers.entries()),
-      })
+      
       if (res.ok && data.success && data.token) {
-        // Store JWT in localStorage
+        // 1. Store JWT
         localStorage.setItem('dsqr_token', data.token)
-        router.push('/')
-        // Force reload to ensure token is available to all components
-        setTimeout(() => {
-          window.location.reload()
-        }, 100)
-        return
+        
+        // 2. Log for verification in Vercel console
+        console.log('[LoginForm] Login success, redirecting...')
+
+        // 3. THE FIX: Force a hard redirect to the Home page
+        // Using window.location.href ensures a full page refresh 
+        // which is safer for auth state updates than router.push
+        window.location.href = '/'
+        return 
       }
+      
+      setLoading(false)
       setError(data.message || 'Invalid email or password')
     } catch (err) {
       setLoading(false)

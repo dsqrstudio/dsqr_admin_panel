@@ -53,12 +53,15 @@ export default function SettingsManager() {
 
       console.log('Attempting to change password...')
 
+      // Get JWT from localStorage
+      const token = typeof window !== 'undefined' ? localStorage.getItem('dsqr_token') : null
+
       const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: 'include',
         body: JSON.stringify({
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
