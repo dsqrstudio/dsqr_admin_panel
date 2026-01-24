@@ -54,11 +54,8 @@ export default function Sidebar({
 
   async function handleLogout() {
     try {
-      await fetch(`${API_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include', // <-- sends the httpOnly cookie to server
-        headers: { 'Content-Type': 'application/json' },
-      })
+      // Remove JWT from localStorage
+      localStorage.removeItem('dsqr_token')
     } catch (error) {
       console.error('Logout failed:', error)
     } finally {

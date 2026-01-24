@@ -40,6 +40,10 @@ export default function LoginForm() {
         // Store JWT in localStorage
         localStorage.setItem('dsqr_token', data.token)
         router.push('/')
+        // Force reload to ensure token is available to all components
+        setTimeout(() => {
+          window.location.reload()
+        }, 100)
         return
       }
       setError(data.message || 'Invalid email or password')
