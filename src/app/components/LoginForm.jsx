@@ -16,41 +16,43 @@ export default function LoginForm() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
   async function handleSubmit(e) {
-  e.preventDefault();
-  setError('');
-  setLoading(true);
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
-  try {
-    const res = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', 
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password }),
+      })
 
-    const data = await res.json();
+      const data = await res.json()
 
-    if (res.ok && data.success && data.token) {
-      // 1. LocalStorage for your Client Components
-      localStorage.setItem('dsqr_token', data.token);
+      if (res.ok && data.success && data.token) {
+        // 1. LocalStorage for your Client Components
+        localStorage.setItem('dsqr_token', data.token)
 
-      // 2. Cookie for your Middleware (Server-side)
-      // This is the most important fix for the Vercel redirect
-      const isSecure = window.location.protocol === 'https:';
-      document.cookie = `dsqr_token=${data.token}; path=/; max-age=604800; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+        // 2. Cookie for your Middleware (Server-side)
+        // This is the most important fix for the Vercel redirect
+        const isSecure = window.location.protocol === 'https:'
+        document.cookie = `dsqr_token=${
+          data.token
+        }; path=/; max-age=604800; SameSite=Lax${isSecure ? '; Secure' : ''}`
 
-      // 3. Hard Redirect to bypass Vercel caching
-      window.location.href = '/';
-      return; 
+        // 3. Hard Redirect to bypass Vercel caching
+        window.location.href = '/'
+        return
+      }
+
+      setLoading(false)
+      setError(data.message || 'Invalid email or password')
+    } catch (err) {
+      setLoading(false)
+      setError('Network error. Check your API URL.')
     }
-    
-    setLoading(false);
-    setError(data.message || 'Invalid email or password');
-  } catch (err) {
-    setLoading(false);
-    setError('Network error. Check your API URL.');
   }
-}
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">

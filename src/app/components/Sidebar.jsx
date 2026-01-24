@@ -62,7 +62,11 @@ export default function Sidebar({
       try {
         sessionStorage.removeItem('dsqr_logged_in')
       } catch {}
-      window.location.href = '/login' // redirect to login page
+      // Force full reload to clear all state and redirect
+      window.location.href = '/login';
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     }
   }
 
