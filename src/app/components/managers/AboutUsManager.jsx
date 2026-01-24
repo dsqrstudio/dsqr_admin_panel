@@ -1,7 +1,7 @@
 // admin/components/managers/AboutUsManager.jsx
 'use client'
 import React, { useState, useEffect } from 'react'
-import AboutUsExtraGraphicSection from './AboutUsExtraGraphicSection';
+import AboutUsExtraGraphicSection from './AboutUsExtraGraphicSection'
 import HlsVideoPlayer from './HlsVideoPlayer'
 import MediaListManager from './MediaListManager'
 import { useToast } from '@/components/ui/toast'

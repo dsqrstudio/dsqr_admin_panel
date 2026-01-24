@@ -21,17 +21,24 @@ export default function LoginForm() {
     setLoading(true)
 
     try {
+      console.log('[LoginForm] Submitting login', { email })
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Crucial for cookies
         body: JSON.stringify({ email, password }),
       })
 
       const data = await res.json()
       setLoading(false)
 
-      if (res.ok && data.success) {
+      console.log('[LoginForm] Login response', {
+        ok: res.ok,
+        data,
+        headers: Object.fromEntries(res.headers.entries()),
+      })
+      if (res.ok && data.success && data.token) {
+        // Store JWT in localStorage
+        localStorage.setItem('dsqr_token', data.token)
         router.push('/')
         return
       }
@@ -39,6 +46,7 @@ export default function LoginForm() {
     } catch (err) {
       setLoading(false)
       setError('Network error. Please check if the server is running.')
+      console.error('[LoginForm] Login error', err)
     }
   }
 

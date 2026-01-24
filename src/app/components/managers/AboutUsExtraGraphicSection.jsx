@@ -1,5 +1,5 @@
-import React from 'react';
-import AffiliateExtraGraphicSection from './AffiliateExtraGraphicSection';
+import React from 'react'
+import AffiliateExtraGraphicSection from './AffiliateExtraGraphicSection'
 
 export default function AboutUsExtraGraphicSection() {
   return (
@@ -7,5 +7,5 @@ export default function AboutUsExtraGraphicSection() {
       subsection="about_us"
       label="About Us — Extra Graphic"
     />
-  );
+  )
 }
