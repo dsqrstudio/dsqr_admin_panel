@@ -139,14 +139,14 @@ export default function AiManager({ activeSub }) {
       </div>
       {ToastComponent}
 
-      {/* Service Offered Video Only (when active === "Service Offered Images") */}
-      <div className={active === 'Service Offered Images' ? 'block' : 'hidden'}>
+      {/* Service Offered Video Only (when active === "Service Offered Videos") */}
+      <div className={active === 'Service Offered Videos' ? 'block' : 'hidden'}>
         <div className="mb-4 text-sm text-slate-600">
           <b>Service Offered Video</b> — Upload and manage videos for
           AI-generated service demos or showcases.
         </div>
         <div className="mb-6">
-          <div className="font-semibold mb-2 flex items-center gap-2">
+          {/* <div className="font-semibold mb-2 flex items-center gap-2">
             Videos
             <button
               className="ml-2 px-2 py-1 rounded bg-slate-200 hover:bg-slate-300 text-xs border border-slate-300"
@@ -159,7 +159,7 @@ export default function AiManager({ activeSub }) {
             >
               {refreshing ? 'Refreshing...' : 'Refresh'}
             </button>
-          </div>
+          </div> */}
           <DragDropUploadManager
             mode="video"
             category="ai_lab"
@@ -180,12 +180,14 @@ export default function AiManager({ activeSub }) {
           generation and previews.
         </div>
         <div className="flex items-center mb-4">
+          {/*
           <button
             className="ml-0 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors duration-150 shadow-sm"
             onClick={() => setSelectMode((m) => !m)}
           >
             {selectMode ? 'Cancel Multi-Select' : 'Select Multiple'}
           </button>
+          */}
           {selectMode && (
             <div className="ml-8 flex items-center gap-2">
               <input

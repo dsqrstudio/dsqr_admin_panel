@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import DragDropUploadManager from './DragDropUploadManager'
 import HlsVideoPlayer from './HlsVideoPlayer'
 import { useToast } from '@/components/ui/toast'
@@ -60,12 +60,12 @@ export default function OurWorkManager({ activeSub }) {
   const subsections = FEATURED_PROJECTS_STRUCTURE[selectedSection] || []
 
   // Helper to get correct category value
-  const getCategory = () => {
+  const getCategory = useCallback(() => {
     if (selectedSection === 'Videos') return 'test'
     if (selectedSection === 'Graphics') return 'graphics'
     if (selectedSection === 'AI Lab') return 'ai_lab'
     return selectedSection.toLowerCase()
-  }
+  }, [selectedSection])
 
   // Fetch items when section/subsection changes
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function OurWorkManager({ activeSub }) {
       setLoading(false)
     }
     fetchItems()
-  }, [selectedSection, selectedSubsection])
+  }, [selectedSection, selectedSubsection, getCategory])
 
   // Refresh after upload/delete
   const handleRefresh = () => {
@@ -148,100 +148,181 @@ export default function OurWorkManager({ activeSub }) {
     setDeleting(false)
   }
 
-  // --- INTERNAL COMPONENT MOVED OUTSIDE OF RETURN ---
+  // --- BEFORE/AFTER VIDEO: NORMAL UPLOAD + AFTER BUTTON ---
   function BeforeAfterVideoManager() {
-    const [before, setBefore] = useState(null)
-    const [after, setAfter] = useState(null)
-    const [uploading, setUploading] = useState(false)
-    const [pairs, setPairs] = useState([])
-    const [loadingPairs, setLoadingPairs] = useState(false)
-    const refreshTimer = useRef()
-
-    const fetchPairs = async () => {
-      setLoadingPairs(true)
+    const [videos, setVideos] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [uploadingId, setUploadingId] = useState(null) // id or 'before'
+    const [uploadingType, setUploadingType] = useState(null) // 'before' or 'after'
+    const [replaceId, setReplaceId] = useState(null)
+    const [replaceType, setReplaceType] = useState(null) // 'before' or 'after'
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+    const { showToast, ToastComponent } = useToast()
+    // Delete before video (deletes the whole pair)
+    const handleDeleteBefore = async (id) => {
+      if (!window.confirm('Delete this before/after video pair?')) return
       try {
-        const res = await fetch('/api/admin/before-after-pairs')
-        const data = await res.json()
-        setPairs(data?.data || [])
+        const res = await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+        if (res.ok) {
+          showToast('Pair deleted successfully', 'success')
+        } else {
+          showToast('Failed to delete pair', 'error')
+        }
       } catch {
-        setPairs([])
+        showToast('Failed to delete pair', 'error')
       }
-      // Keep 'Refreshing...' for 1s for better UX
-      setTimeout(() => setLoadingPairs(false), 1000)
+      fetchVideos()
+    }
+
+    // Delete after video (removes only after, keeps before)
+    const handleDeleteAfter = async (id) => {
+      if (!window.confirm('Remove the after video?')) return
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ after: '', afterPoster: '' }),
+        })
+        if (res.ok) {
+          showToast('After video removed', 'success')
+        } else {
+          showToast('Failed to remove after video', 'error')
+        }
+      } catch {
+        showToast('Failed to remove after video', 'error')
+      }
+      fetchVideos()
+    }
+
+    // Replace before/after video
+    const handleReplace = async (file, id, type) => {
+      if (!file) return
+      setReplaceId(id)
+      setReplaceType(type)
+      const formData = new FormData()
+      formData.append('file', file)
+      let endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace`
+      if (type === 'after') {
+        endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace-after`
+      }
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        })
+        if (res.ok) {
+          showToast(
+            `${type === 'after' ? 'After' : 'Before'} video replaced!`,
+            'success'
+          )
+        } else {
+          showToast('Failed to replace video', 'error')
+        }
+      } catch {
+        showToast('Failed to replace video', 'error')
+      }
+      setReplaceId(null)
+      setReplaceType(null)
+      fetchVideos()
+    }
+
+    // Fetch all before/after videos (category: 'test', subsection: 'Before/After Video')
+    const fetchVideos = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/admin/media-items/category/test?subsection=Before/After Video`,
+          { credentials: 'include' }
+        )
+        const data = await res.json()
+        setVideos(
+          Array.isArray(data.data)
+            ? data.data.map((v) => ({
+                ...v,
+                afterSrc: v.after, // map backend 'after' to frontend 'afterSrc'
+                afterPoster: v.afterPoster,
+              }))
+            : []
+        )
+      } catch {
+        setVideos([])
+      }
+      setLoading(false)
     }
 
     useEffect(() => {
-      fetchPairs()
-      refreshTimer.current = setInterval(fetchPairs, 60000)
-      return () => clearInterval(refreshTimer.current)
+      fetchVideos()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    const handleUpload = async (file, which) => {
-      setUploading(true)
+    // Upload before video
+    const handleBeforeUpload = async (file) => {
+      setUploadingId('before')
+      setUploadingType('before')
       const formData = new FormData()
       formData.append('file', file)
       formData.append('type', 'video')
       formData.append('category', 'test')
       formData.append('subsection', 'Before/After Video')
       try {
-        const res = await fetch('/api/admin/media-items/upload', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-        })
-        const data = await res.json()
-        if (data.success && data.data) {
-          const { videoId, hlsUrl, poster, _id } = data.data
-          const videoObj = {
-            videoId: videoId || _id,
-            hlsUrl: hlsUrl || data.data.src,
-            poster: poster || '',
+        const res = await fetch(
+          `${API_BASE_URL}/api/admin/media-items/upload`,
+          {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
           }
-          if (which === 'before') setBefore(videoObj)
-          else setAfter(videoObj)
-        }
-      } finally {
-        setUploading(false)
-      }
-    }
-
-    const handleSavePair = async () => {
-      if (!before || !after) return
-      setUploading(true)
-      try {
-        const res = await fetch('/api/admin/before-after-pairs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ before, after }),
-        })
+        )
         const data = await res.json()
         if (data.success) {
-          setBefore(null)
-          setAfter(null)
-          fetchPairs()
+          showToast('Before video uploaded!', 'success')
+          fetchVideos()
         }
       } finally {
-        setUploading(false)
+        setUploadingId(null)
+        setUploadingType(null)
       }
     }
 
-    const handleDeletePair = async (id) => {
-      if (!window.confirm('Delete this before/after pair?')) return
-      setUploading(true)
+    // Upload after video for a given before video
+    const handleAfterUpload = async (file, beforeId) => {
+      setUploadingId(beforeId)
+      setUploadingType('after')
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'video')
+      formData.append('category', 'test')
+      formData.append('subsection', 'Before/After Video')
+      formData.append('beforeId', beforeId)
       try {
-        await fetch(`/api/admin/before-after-pairs/${id}`, {
-          method: 'DELETE',
-          credentials: 'include',
-        })
-        fetchPairs()
+        const res = await fetch(
+          `${API_BASE_URL}/api/admin/media-items/upload`,
+          {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+          }
+        )
+        const data = await res.json()
+        if (data.success) {
+          showToast('After video uploaded!', 'success')
+          fetchVideos()
+        }
       } finally {
-        setUploading(false)
+        setUploadingId(null)
+        setUploadingType(null)
       }
     }
 
     return (
       <div className="rounded-xl border bg-white p-8 shadow-md">
+        {ToastComponent}
         <h2 className="text-3xl font-extrabold text-slate-900 mb-2 flex items-center gap-2">
           <span role="img" aria-label="before-after">
             🎬
@@ -249,121 +330,202 @@ export default function OurWorkManager({ activeSub }) {
           Before / After Videos
         </h2>
         <p className="text-base text-slate-600 mb-6">
-          Upload and manage before/after video pairs for your portfolio.
-          Showcase your transformations with side-by-side video comparison.
+          <b>Step 1:</b> Add Before Video first.
+          <br />
+          <b>Step 2:</b> For each video, use the &#39;Upload After Video&#39;
+          button to add the after video.
+          <br />
+          Both videos will be shown side by side after upload. You can also
+          replace or delete videos.
         </p>
-        {/* Upload section always at top */}
-        <div className="flex flex-col md:flex-row gap-6 mb-6">
-          <div className="flex-1 bg-gray-50 rounded-lg p-4 border">
-            <label className="block font-semibold mb-2 text-slate-800">
-              Before Video
-            </label>
-            <input
-              type="file"
-              accept="video/*"
-              disabled={uploading}
-              className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#cff000] file:text-slate-900 hover:file:bg-lime-200"
-              onChange={(e) =>
-                e.target.files && handleUpload(e.target.files[0], 'before')
-              }
-            />
-            {before && (
-              <div className="mt-3 flex flex-col items-center">
-                <HlsVideoPlayer
-                  src={before.hlsUrl}
-                  poster={before.poster}
-                  style={{ maxWidth: 220, borderRadius: 8 }}
-                />
-                <div className="text-center text-xs mt-2 font-medium text-slate-700">
-                  Before
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="flex-1 bg-gray-50 rounded-lg p-4 border">
-            <label className="block font-semibold mb-2 text-slate-800">
-              After Video
-            </label>
-            <input
-              type="file"
-              accept="video/*"
-              disabled={uploading}
-              className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#cff000] file:text-slate-900 hover:file:bg-lime-200"
-              onChange={(e) =>
-                e.target.files && handleUpload(e.target.files[0], 'after')
-              }
-            />
-            {after && (
-              <div className="mt-3 flex flex-col items-center">
-                <HlsVideoPlayer
-                  src={after.hlsUrl}
-                  poster={after.poster}
-                  style={{ maxWidth: 220, borderRadius: 8 }}
-                />
-                <div className="text-center text-xs mt-2 font-medium text-slate-700">
-                  After
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col justify-end items-center min-w-[120px]">
-            <button
-              className="w-full px-5 py-2 bg-[#cff000] text-slate-900 rounded-lg font-bold text-base shadow-sm disabled:opacity-50 transition"
-              disabled={!before || !after || uploading}
-              onClick={handleSavePair}
-            >
-              {uploading ? 'Saving...' : 'Save Pair'}
-            </button>
-          </div>
+        <div className="flex items-center gap-4 mb-6">
+          <label className="block font-semibold mb-2 text-slate-800">
+            Upload Before Video
+          </label>
+          <input
+            type="file"
+            accept="video/*"
+            disabled={uploadingId === 'before' && uploadingType === 'before'}
+            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#cff000] file:text-slate-900 hover:file:bg-lime-200"
+            onChange={(e) =>
+              e.target.files && handleBeforeUpload(e.target.files[0])
+            }
+          />
+          {uploadingId === 'before' && uploadingType === 'before' ? (
+            <span className="ml-4 text-blue-600 font-medium">Uploading...</span>
+          ) : null}
+          <button
+            className="ml-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-base font-medium text-slate-800 transition disabled:opacity-60"
+            onClick={fetchVideos}
+            disabled={loading}
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
-        <button
-          className="mb-6 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-base font-medium text-slate-800 transition disabled:opacity-60"
-          onClick={fetchPairs}
-          disabled={loadingPairs}
-        >
-          {loadingPairs ? 'Refreshing...' : 'Refresh'}
-        </button>
-        {/* Preview grid always below upload */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {pairs.map((pair) => (
+          {videos.map((video) => (
             <div
-              key={pair._id}
-              className="border rounded-xl p-5 flex flex-col items-center bg-gray-50 shadow-sm"
+              key={video._id}
+              className="border rounded-xl p-3 flex flex-col gap-1 bg-gray-50 shadow-sm w-full relative"
             >
-              <div className="flex gap-6 mb-2">
-                <div>
-                  <div className="text-center font-semibold mb-2 text-slate-800">
-                    Before
+              {/* Dustbin Delete Icon for the pair, outside the before/after but inside the card */}
+              <div className="flex justify-end mb-1">
+                <button
+                  className="text-red-500 hover:text-red-700 p-1 rounded-full transition-colors"
+                  onClick={() => handleDeleteBefore(video._id)}
+                  title="Delete pair"
+                  aria-label="Delete pair"
+                  style={{ zIndex: 2 }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="22"
+                    height="22"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <title>Delete pair</title>
+                    <path
+                      d="M3 6h18"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <rect
+                      x="5"
+                      y="6"
+                      width="14"
+                      height="14"
+                      rx="2"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M9 10v6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M15 10v6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex flex-col md:flex-row gap-4 items-stretch">
+                {/* Before Video Card */}
+                <div className="flex-1 flex flex-col items-center bg-white rounded-lg p-4 shadow">
+                  <div className="flex w-full justify-between items-center mb-2">
+                    <span className="font-semibold text-slate-800">Before</span>
+                    <div className="flex gap-2">
+                      <label className="cursor-pointer text-blue-600 hover:underline text-xs">
+                        <input
+                          type="file"
+                          accept="video/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) =>
+                            e.target.files &&
+                            handleReplace(
+                              e.target.files[0],
+                              video._id,
+                              'before'
+                            )
+                          }
+                          disabled={
+                            replaceId === video._id && replaceType === 'before'
+                          }
+                        />
+                        {replaceId === video._id && replaceType === 'before'
+                          ? 'Replacing...'
+                          : 'Replace'}
+                      </label>
+                    </div>
                   </div>
                   <HlsVideoPlayer
-                    src={pair.before.hlsUrl}
-                    poster={pair.before.poster}
-                    style={{ maxWidth: 220, borderRadius: 8 }}
+                    src={video.src}
+                    poster={video.poster}
+                    style={{ width: '100%', borderRadius: 8, maxHeight: 220 }}
                   />
                 </div>
-                <div>
-                  <div className="text-center font-semibold mb-2 text-slate-800">
-                    After
+                {/* After Video Card or Upload */}
+                <div className="flex-1 flex flex-col items-center bg-white rounded-lg p-4 shadow min-h-[220px] justify-center">
+                  <div className="flex w-full justify-between items-center mb-2">
+                    <span className="font-semibold text-slate-800">After</span>
+                    {video.afterSrc && (
+                      <div className="flex gap-2">
+                        <label className="cursor-pointer text-blue-600 hover:underline text-xs">
+                          <input
+                            type="file"
+                            accept="video/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) =>
+                              e.target.files &&
+                              handleReplace(
+                                e.target.files[0],
+                                video._id,
+                                'after'
+                              )
+                            }
+                            disabled={
+                              replaceId === video._id && replaceType === 'after'
+                            }
+                          />
+                          {replaceId === video._id && replaceType === 'after'
+                            ? 'Replacing...'
+                            : 'Replace'}
+                        </label>
+                      </div>
+                    )}
                   </div>
-                  <HlsVideoPlayer
-                    src={pair.after.hlsUrl}
-                    poster={pair.after.poster}
-                    style={{ maxWidth: 220, borderRadius: 8 }}
-                  />
+                  {video.afterSrc ? (
+                    <HlsVideoPlayer
+                      src={video.afterSrc}
+                      poster={video.afterPoster}
+                      style={{ width: '100%', borderRadius: 8, maxHeight: 220 }}
+                    />
+                  ) : (
+                    <>
+                      <button
+                        className="mb-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded text-sm font-semibold transition"
+                        disabled={
+                          uploadingId === video._id && uploadingType === 'after'
+                        }
+                        onClick={() =>
+                          document
+                            .getElementById(`after-upload-${video._id}`)
+                            .click()
+                        }
+                      >
+                        {uploadingId === video._id && uploadingType === 'after'
+                          ? 'Uploading...'
+                          : 'Upload After Video'}
+                      </button>
+                      <input
+                        id={`after-upload-${video._id}`}
+                        type="file"
+                        accept="video/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) =>
+                          e.target.files &&
+                          handleAfterUpload(e.target.files[0], video._id)
+                        }
+                      />
+                      <div className="text-xs text-slate-400 mt-2">
+                        No after video uploaded yet.
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-              <button
-                className="mt-2 px-4 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-sm font-semibold transition"
-                onClick={() => handleDeletePair(pair._id)}
-                disabled={uploading}
-              >
-                Delete Pair
-              </button>
             </div>
           ))}
-          {pairs.length === 0 && !loadingPairs && (
+          {videos.length === 0 && !loading && (
             <div className="col-span-2 text-center text-slate-500 py-8 text-lg">
-              No before/after pairs found.
+              No before/after videos found.
             </div>
           )}
         </div>

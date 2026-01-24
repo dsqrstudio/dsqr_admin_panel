@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import DragDropUploadManager from './DragDropUploadManager'
 import MediaListManager from './MediaListManager'
+import AffiliateExtraGraphicSection from './AffiliateExtraGraphicSection'
+import { useToast } from '@/components/ui/toast'
 
 const AFFILIATES_CATEGORY = 'affiliated'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
@@ -136,12 +138,14 @@ export default function AffiliatedManager() {
         >
           {refreshing ? 'Refreshing...' : '⟳ Refresh'}
         </button>
+        {/*
         <button
           className="ml-4 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors duration-150 shadow-sm"
           onClick={() => setSelectMode((m) => !m)}
         >
           {selectMode ? 'Cancel Multi-Select' : 'Select Multiple'}
         </button>
+        */}
         {selectMode && (
           <div className="ml-8 flex items-center gap-2">
             <input
@@ -187,29 +191,7 @@ export default function AffiliatedManager() {
           }
         />
       )}
-      <div className="mt-10">
-        <div className="flex items-center mb-2">
-          <h3 className="text-xl font-semibold mr-4">
-            Affiliate — Extra Graphic
-          </h3>
-          <button
-            onClick={handleRefresh}
-            className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition-colors duration-150 shadow-sm"
-            title="Refresh data"
-            disabled={refreshing}
-          >
-            {refreshing ? 'Refreshing...' : '⟳ Refresh'}
-          </button>
-        </div>
-        <p className="text-sm text-slate-600 mb-4">
-          Manage the extra affiliate graphic stored under the Extras folder.
-        </p>
-        <MediaListManager
-          mode="image"
-          category="extras"
-          subsection="affiliate"
-        />
-      </div>
+      <AffiliateExtraGraphicSection />
     </div>
   )
 }

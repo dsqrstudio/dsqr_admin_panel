@@ -412,7 +412,7 @@ export default function DragDropUploadManager({
           // Always use HLS URL for video src if available
           const videoSrc = isVideo ? item.hlsUrl || item.src : item.src
           // Always use poster for video thumbnail if available
-          const previewSrc = isVideo ? item.poster || '' : item.src
+          const previewSrc = isVideo && item.poster ? item.poster : item.src
           const isDraggedOver = dragOverIndex === index
 
           return (
@@ -450,7 +450,16 @@ export default function DragDropUploadManager({
 
               {/* Preview */}
               <div
-                className="shrink-0 w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-slate-100 border-2 border-slate-200 group-hover:border-[#cff000]/30 transition-all duration-300 shadow-sm relative cursor-pointer group/preview"
+                className="shrink-0 w-14 h-14 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-slate-200 group-hover:border-[#cff000]/30 transition-all duration-300 shadow-sm relative cursor-pointer group/preview"
+                style={
+                  isVideo && item.poster
+                    ? {
+                        backgroundImage: `url('${item.poster}')`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      }
+                    : {}
+                }
                 onClick={() => {
                   if (isVideo) {
                     if (!videoSrc) {
@@ -467,7 +476,7 @@ export default function DragDropUploadManager({
                     })
                   } else if (previewSrc) {
                     setPreviewModal({
-                      src: previewSrc,
+                      src: previewSrc + '?v=' + (item.updatedAt || Date.now()),
                       type: 'image',
                       poster: item.poster,
                     })
@@ -486,34 +495,42 @@ export default function DragDropUploadManager({
                   </div>
                 ) : previewSrc ? (
                   <>
-                    {/* <div>{previewSrc}</div> */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={previewSrc}
+                      key={isVideo ? item.poster || '' : item.src || ''}
+                      src={
+                        previewSrc + '?v=' + (item.updatedAt || item._id || 0)
+                      }
                       alt=""
                       className="w-full h-full object-cover group-hover/preview:scale-105 transition-transform duration-300"
                       onError={(e) => {
                         e.target.onerror = null
                         e.target.style.display = 'none'
-                        const fallback = e.target.parentNode.querySelector(
-                          '.video-fallback-icon'
-                        )
-                        if (fallback) fallback.style.display = 'flex'
+                        // Only show fallback icon for videos
+                        if (isVideo) {
+                          const fallback = e.target.parentNode.querySelector(
+                            '.video-fallback-icon'
+                          )
+                          if (fallback) fallback.style.display = 'flex'
+                        }
                       }}
                     />
-                    <div
-                      className="video-fallback-icon w-full h-full flex items-center justify-center text-slate-400"
-                      style={{
-                        display: 'none',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                      }}
-                    >
-                      <FiVideo className="h-6 w-6 sm:h-8 sm:w-8" />
-                    </div>
+                    {/* Only show fallback icon for videos */}
+                    {isVideo && (
+                      <div
+                        className="video-fallback-icon w-full h-full flex items-center justify-center text-slate-400"
+                        style={{
+                          display: 'none',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                        }}
+                      >
+                        <FiVideo className="h-6 w-6 sm:h-8 sm:w-8" />
+                      </div>
+                    )}
                     {/* Hover overlay */}
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/preview:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                       <FiEye className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
@@ -522,6 +539,23 @@ export default function DragDropUploadManager({
                     {item.title && (
                       <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] sm:text-xs px-1.5 py-1 truncate">
                         {item.title}
+                      </div>
+                    )}
+                    {/* Show loading overlay if editing this video */}
+                    {isVideo && uploading && editingIndex === index && (
+                      <div className="absolute inset-0 bg-white/60 flex flex-col items-center justify-center z-20 pointer-events-none">
+                        <span
+                          className="text-xs text-slate-700 mb-2"
+                          style={{ textShadow: '0 1px 2px #fff' }}
+                        >
+                          Uploading...
+                        </span>
+                        <div className="w-2/3 h-2 bg-slate-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#cff000] transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
                       </div>
                     )}
                   </>

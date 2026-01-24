@@ -29,7 +29,7 @@ export const MENU = [
   {
     id: 'ai',
     label: 'AI',
-    sub: ['Primary Graphics', 'Service Offered Images'],
+    sub: ['Primary Graphics', 'Service Offered Videos'],
   },
   { id: 'affiliates', label: 'Affiliates' },
   { id: 'about', label: 'About Us' },

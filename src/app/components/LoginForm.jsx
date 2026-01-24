@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation' // Use Next.js router for better redirection
 import { FiEye, FiEyeOff } from 'react-icons/fi'
 
 export default function LoginForm() {
@@ -10,6 +11,7 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const router = useRouter()
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
@@ -22,44 +24,32 @@ export default function LoginForm() {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        credentials: 'include', // Crucial for cookies
         body: JSON.stringify({ email, password }),
       })
 
       const data = await res.json()
       setLoading(false)
 
-      if (!res.ok) {
-        setError(data.message || 'Invalid email or password')
+      if (res.ok && data.success) {
+        router.push('/')
         return
       }
-
-      // Mark session and go to home (dashboard at "/")
-      try {
-        sessionStorage.setItem('dsqr_logged_in', '1')
-      } catch {}
-
-      // TEMPORARY: send a fetch with custom header to set dashboard access
-      fetch('/', { headers: { 'x-dsqr-logged-in': '1' } })
-
-      window.location.href = '/'
+      setError(data.message || 'Invalid email or password')
     } catch (err) {
       setLoading(false)
-      setError('Network error. Please try again.')
+      setError('Network error. Please check if the server is running.')
     }
   }
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-linear-to-br from-gray-50 via-gray-200 to-gray-400
- px-4"
-    >
-      <div className="flex w-full max-w-5xl overflow-hidden rounded-3xl shadow-lg bg-white">
-        {/* Left section: form */}
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        {/* Left Section: Form */}
         <div className="flex flex-1 flex-col justify-center px-8 py-12 md:px-16">
           <div className="mb-8 flex items-center gap-3">
             <Image
-              src="/dsqr_logo.png" // <-- your logo file in public folder
+              src="/dsqr_logo.png"
               alt="DSQR Logo"
               width={48}
               height={48}
@@ -135,11 +125,11 @@ export default function LoginForm() {
           </p>
         </div>
 
-        {/* Right section: logo / background */}
-        <div className="hidden flex-1 items-center justify-center bg-linear-to-br from-black to-gray-900 md:flex">
+        {/* Right section: Background */}
+        <div className="hidden flex-1 items-center justify-center bg-gradient-to-br from-black to-gray-900 md:flex">
           <div className="flex flex-col items-center text-center text-white">
             <Image
-              src="/dsqr_logo.png" // same logo from public
+              src="/dsqr_logo.png"
               alt="DSQR Logo"
               width={180}
               height={180}

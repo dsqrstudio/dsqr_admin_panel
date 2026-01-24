@@ -6,9 +6,7 @@ export function middleware(req) {
   const { pathname } = url
   const token = req.cookies.get('dsqr_token')?.value // must match backend COOKIE_NAME
 
-  // TEMPORARY WORKAROUND: allow dashboard if sessionStorage 'dsqr_logged_in' is set (set by LoginForm)
-  // This only works on the client, so we check for a custom header sent from the client
-  const loggedInHeader = req.headers.get('x-dsqr-logged-in')
+  // Remove temporary workaround: enforce cookie-based authentication only
 
   // Allow Next.js internals and static assets
   if (
@@ -36,9 +34,12 @@ export function middleware(req) {
     return NextResponse.redirect(url)
   }
 
-  // Protect the home (dashboard) route: verify token server-side when present
-  // TEMPORARY: allow access to dashboard ("/") for everyone, no login required
+  // Protect the home (dashboard) route: require valid cookie
   if (pathname === '/') {
+    if (!token || token === '') {
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
     return NextResponse.next()
   }
 

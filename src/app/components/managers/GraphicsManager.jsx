@@ -139,12 +139,14 @@ export default function GraphicsManager({ activeSub }) {
         >
           &#x21bb; Refresh
         </button>
+        {/*
         <button
           className="ml-4 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors duration-150 shadow-sm"
           onClick={() => setSelectMode((m) => !m)}
         >
           {selectMode ? 'Cancel Multi-Select' : 'Select Multiple'}
         </button>
+        */}
         {selectMode && (
           <div className="ml-8 flex items-center gap-2">
             <input

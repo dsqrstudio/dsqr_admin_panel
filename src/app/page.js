@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import DashboardRoot from './components/DashboardRoot'
 
@@ -18,10 +18,15 @@ export default function Home() {
         })
 
         if (!response.ok) {
-          router.push('/login')
+          router.replace('/login')
+          return
+        }
+        const data = await response.json()
+        if (!data.user || !data.user.email) {
+          router.replace('/login')
         }
       } catch (error) {
-        router.push('/login')
+        router.replace('/login')
       }
     }
 

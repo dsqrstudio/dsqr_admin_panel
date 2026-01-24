@@ -6,10 +6,16 @@ import { useToast } from '@/components/ui/toast'
 // --- CATEGORY/SUBSECTION MAPPING ---
 const MENU_MAP = {
   // Home section
-  'Portfolio Video': { category: 'test', subsection: 'home-portfolio' },
+  'Portfolio Video': {
+    category: 'home_portfolio_video',
+    subsection: 'home-portfolio',
+  },
   'Services Offered': { category: 'test', subsection: 'home-service-offered' },
   // Videos section
-  'Videos Portfolio': { category: 'test', subsection: 'video-portfolio' },
+  'Videos Portfolio': {
+    category: 'video_portfolio_video',
+    subsection: 'video-portfolio',
+  },
   'Videos Service Offered': {
     category: 'test',
     subsection: 'video-service-offered',
@@ -28,10 +34,21 @@ const VideoManager = ({ activeSub }) => {
   console.log('[VideoManager] activeSub:', activeSub)
   const active = activeSub || 'Home Service Offered Video'
   console.log('[VideoManager] active:', active)
-  
-  const { category, subsection } = MENU_MAP[active] || {
-    category: 'test',
-    subsection: 'service_offered',
+
+  // Only allow correct mapping for each menu
+  let category = 'test'
+  let subsection = 'service_offered'
+  if (active === 'Videos Portfolio') {
+    subsection = 'video-portfolio'
+  } else if (
+    active === 'Portfolio Video' ||
+    active === 'Home Portfolio Video' ||
+    active === 'Home-Portfolio'
+  ) {
+    subsection = 'home-portfolio'
+  } else if (MENU_MAP[active]) {
+    category = MENU_MAP[active].category
+    subsection = MENU_MAP[active].subsection
   }
 
   const [videoItems, setVideoItems] = useState([])
@@ -79,7 +96,7 @@ const VideoManager = ({ activeSub }) => {
     'Portfolio Video',
     'Home Portfolio Video',
     'Home-Portfolio',
-  ].includes(active);
+  ].includes(active)
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -100,7 +117,7 @@ const VideoManager = ({ activeSub }) => {
         <div className="text-sm text-slate-600 mb-3">
           {active} — add thumbnails for each video (poster required).
         </div>
-        
+
         <DragDropUploadManager
           mode="video"
           items={videoItems}

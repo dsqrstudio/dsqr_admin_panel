@@ -50,9 +50,13 @@ function PrimaryGraphicsSection() {
     setPrimaryLoading(true)
     setStepsLoading(true)
     setGalleryLoading(true)
-    fetch(`${API_BASE_URL}/api/admin/media-items/category/home-page`, {
-      credentials: 'include',
-    })
+    // Add cache-busting param to always fetch fresh data
+    fetch(
+      `${API_BASE_URL}/api/admin/media-items/category/home-page?v=${Date.now()}`,
+      {
+        credentials: 'include',
+      }
+    )
       .then((r) => r.json())
       .then((res) => {
         console.log('🏠 HomeManager: API Response:', res)
@@ -263,8 +267,9 @@ function PortfolioVideoSection() {
   // Fetch videos for home-portfolio
   const fetchVideos = () => {
     setLoading(true)
+    // Add cache-busting param to always fetch fresh data
     fetch(
-      `${API_BASE_URL}/api/admin/media-items/category/test?subsection=home-portfolio`,
+      `${API_BASE_URL}/api/admin/media-items/category/home_portfolio_video?subsection=home-portfolio&_=${Date.now()}`,
       {
         credentials: 'include',
       }
@@ -287,14 +292,35 @@ function PortfolioVideoSection() {
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold mb-2">Portfolio Video</h3>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-semibold">Portfolio Video</h3>
+        <button
+          className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
+          onClick={fetchVideos}
+          disabled={loading}
+          style={{
+            minWidth: 100,
+            width: 120,
+            height: 40,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span
+            style={{ width: 80, textAlign: 'center', display: 'inline-block' }}
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </span>
+        </button>
+      </div>
       <p className="text-sm text-slate-500 mb-4">
         Upload the main homepage video. Only file upload is allowed. Only one
         video can be set.
       </p>
       <DragDropUploadManager
         mode="video"
-        category="test"
+        category="home_portfolio_video"
         subsection="home-portfolio"
         items={items}
         onChange={setItems}
@@ -319,7 +345,7 @@ function ServicesOfferedSection() {
     setLoading(true)
     setRefreshing(true)
     fetch(
-      `${API_BASE_URL}/api/admin/media-items/category/test?subsection=home-service-offered`,
+      `${API_BASE_URL}/api/admin/media-items/category/services_offered?subsection=home-service-offered`,
       {
         credentials: 'include',
       }
@@ -373,7 +399,7 @@ function ServicesOfferedSection() {
       </p>
       <DragDropUploadManager
         mode="video"
-        category="test"
+        category="services_offered"
         subsection="home-service-offered"
         items={items}
         onChange={setItems}
