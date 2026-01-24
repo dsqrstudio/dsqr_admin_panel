@@ -16,42 +16,41 @@ export default function LoginForm() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
   async function handleSubmit(e) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      console.log('[LoginForm] Submitting login', { email })
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+  try {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', 
+      body: JSON.stringify({ email, password }),
+    });
 
-      const data = await res.json()
-      
-      if (res.ok && data.success && data.token) {
-        // 1. Store JWT
-        localStorage.setItem('dsqr_token', data.token)
-        
-        // 2. Log for verification in Vercel console
-        console.log('[LoginForm] Login success, redirecting...')
+    const data = await res.json();
 
-        // 3. THE FIX: Force a hard redirect to the Home page
-        // Using window.location.href ensures a full page refresh 
-        // which is safer for auth state updates than router.push
-        window.location.href = '/'
-        return 
-      }
-      
-      setLoading(false)
-      setError(data.message || 'Invalid email or password')
-    } catch (err) {
-      setLoading(false)
-      setError('Network error. Please check if the server is running.')
-      console.error('[LoginForm] Login error', err)
+    if (res.ok && data.success && data.token) {
+      // 1. LocalStorage for your Client Components
+      localStorage.setItem('dsqr_token', data.token);
+
+      // 2. Cookie for your Middleware (Server-side)
+      // This is the most important fix for the Vercel redirect
+      const isSecure = window.location.protocol === 'https:';
+      document.cookie = `dsqr_token=${data.token}; path=/; max-age=604800; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+
+      // 3. Hard Redirect to bypass Vercel caching
+      window.location.href = '/';
+      return; 
     }
+    
+    setLoading(false);
+    setError(data.message || 'Invalid email or password');
+  } catch (err) {
+    setLoading(false);
+    setError('Network error. Check your API URL.');
   }
+}
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
