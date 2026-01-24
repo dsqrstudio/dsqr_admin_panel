@@ -73,9 +73,7 @@ export default function OurWorkManager({ activeSub }) {
       setLoading(true)
       try {
         const res = await fetch(
-          `/api/admin/media-items/category/${getCategory()}?subsection=${encodeURIComponent(
-            selectedSubsection
-          )}`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${getCategory()}?subsection=${encodeURIComponent(selectedSubsection)}`
         )
         const data = await res.json()
         setItems(data?.data || [])
@@ -95,9 +93,7 @@ export default function OurWorkManager({ activeSub }) {
   const handleRefresh = () => {
     setLoading(true)
     fetch(
-      `/api/admin/media-items/category/${getCategory()}?subsection=${encodeURIComponent(
-        selectedSubsection
-      )}`
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${getCategory()}?subsection=${encodeURIComponent(selectedSubsection)}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -135,7 +131,7 @@ export default function OurWorkManager({ activeSub }) {
     setDeleting(true)
     try {
       for (const id of selectedIds) {
-        await fetch(`/api/admin/media-items/${id}`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
           method: 'DELETE',
           credentials: 'include',
         })

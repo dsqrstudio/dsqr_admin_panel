@@ -17,7 +17,7 @@ export default function AffiliatedManager() {
   useEffect(() => {
     console.log('🤝 AffiliatedManager: Fetching items from API...')
     fetch(
-      `${API_BASE_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}`,
       {
         credentials: 'include',
       }
@@ -70,7 +70,7 @@ export default function AffiliatedManager() {
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
             method: 'DELETE',
             credentials: 'include',
           })
@@ -83,7 +83,7 @@ export default function AffiliatedManager() {
     setSelectMode(false)
     setLoading(true)
     fetch(
-      `${API_BASE_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}`,
       { credentials: 'include' }
     )
       .then((res) => res.json())
@@ -107,7 +107,7 @@ export default function AffiliatedManager() {
     // Re-run the fetch logic
     setLoading(true)
     fetch(
-      `${API_BASE_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}`,
       { credentials: 'include' }
     )
       .then((res) => res.json())

@@ -59,7 +59,7 @@ export default function SettingsManager() {
           ? localStorage.getItem('dsqr_token')
           : null
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

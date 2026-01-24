@@ -18,7 +18,7 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
     setRefreshing(true)
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/category/${CLIENT_LOGOS_CATEGORY}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${CLIENT_LOGOS_CATEGORY}`,
         {
           credentials: 'include',
         }
@@ -61,7 +61,7 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
             method: 'DELETE',
             credentials: 'include',
           })

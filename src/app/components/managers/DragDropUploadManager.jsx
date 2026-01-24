@@ -96,7 +96,7 @@ export default function DragDropUploadManager({
 
       // Use XMLHttpRequest for progress
       const xhr = new window.XMLHttpRequest()
-      xhr.open('POST', `${API_BASE_URL}/api/admin/media-items/upload`, true)
+      xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`, true)
       xhr.withCredentials = true
 
       xhr.upload.onprogress = function (event) {
@@ -204,7 +204,7 @@ export default function DragDropUploadManager({
             />
           )
         }
-        await fetch(`${API_BASE_URL}/api/admin/media-items/${itemId}`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}`, {
           method: 'DELETE',
           credentials: 'include',
         })
@@ -262,7 +262,7 @@ export default function DragDropUploadManager({
       const xhr = new window.XMLHttpRequest()
       xhr.open(
         'POST',
-        `${API_BASE_URL}/api/admin/media-items/${itemId}/replace`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}/replace`,
         true
       )
       xhr.withCredentials = true

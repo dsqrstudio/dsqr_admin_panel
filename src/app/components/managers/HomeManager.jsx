@@ -52,7 +52,7 @@ function PrimaryGraphicsSection() {
     setGalleryLoading(true)
     // Add cache-busting param to always fetch fresh data
     fetch(
-      `${API_BASE_URL}/api/admin/media-items/category/home-page?v=${Date.now()}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/home-page?v=${Date.now()}`,
       {
         credentials: 'include',
       }
@@ -269,7 +269,7 @@ function PortfolioVideoSection() {
     setLoading(true)
     // Add cache-busting param to always fetch fresh data
     fetch(
-      `${API_BASE_URL}/api/admin/media-items/category/home_portfolio_video?subsection=home-portfolio&_=${Date.now()}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/home_portfolio_video?subsection=home-portfolio&_=${Date.now()}`,
       {
         credentials: 'include',
       }
@@ -345,7 +345,7 @@ function ServicesOfferedSection() {
     setLoading(true)
     setRefreshing(true)
     fetch(
-      `${API_BASE_URL}/api/admin/media-items/category/services_offered?subsection=home-service-offered`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/services_offered?subsection=home-service-offered`,
       {
         credentials: 'include',
       }

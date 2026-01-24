@@ -35,7 +35,7 @@ export default function GraphicsManager({ activeSub }) {
     queryKey: ['graphics-items'],
     queryFn: async () => {
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/category/${API_CATEGORY}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`,
         {
           credentials: 'include',
         }
@@ -107,7 +107,7 @@ export default function GraphicsManager({ activeSub }) {
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
             method: 'DELETE',
             credentials: 'include',
           })

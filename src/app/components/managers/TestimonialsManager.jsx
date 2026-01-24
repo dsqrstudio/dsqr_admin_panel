@@ -77,7 +77,7 @@ export default function TestimonialsManager() {
   useEffect(() => {
     const loadTestimonials = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/testimonials`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials`, {
           credentials: 'include',
         })
 
@@ -154,7 +154,7 @@ export default function TestimonialsManager() {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/testimonials/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}`,
         {
           method: 'DELETE',
           credentials: 'include',
@@ -283,8 +283,8 @@ export default function TestimonialsManager() {
     try {
       const isNew = !isMongoId(id)
       const url = isNew
-        ? `${API_BASE_URL}/api/admin/testimonials`
-        : `${API_BASE_URL}/api/admin/testimonials/${id}`
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}`
       const method = isNew ? 'POST' : 'PUT'
       const response = await fetch(url, {
         method,
@@ -355,7 +355,7 @@ export default function TestimonialsManager() {
     setSaving(true)
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/testimonials/bulk`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/bulk`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -408,7 +408,7 @@ export default function TestimonialsManager() {
       let data
       if (isMongoId(id)) {
         const res = await fetch(
-          `${API_BASE_URL}/api/admin/testimonials/${id}/replace-image`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}/replace-image`,
           { method: 'POST', credentials: 'include', body: formData }
         )
         if (!res.ok) throw new Error('Replace failed')
@@ -422,7 +422,7 @@ export default function TestimonialsManager() {
         )
       } else {
         const res = await fetch(
-          `${API_BASE_URL}/api/admin/testimonials/upload`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/upload`,
           {
             method: 'POST',
             credentials: 'include',

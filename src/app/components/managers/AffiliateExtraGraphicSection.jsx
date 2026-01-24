@@ -29,7 +29,7 @@ export default function AffiliateExtraGraphicSection({
     setLoading(true)
     try {
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/category/extras?subsection=${subsection}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/extras?subsection=${subsection}`,
         { credentials: 'include' }
       )
       const data = await res.json()
@@ -58,7 +58,7 @@ export default function AffiliateExtraGraphicSection({
     form.append('category', 'extras')
     form.append('subsection', subsection)
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`, {
         method: 'POST',
         body: form,
         credentials: 'include',
@@ -84,7 +84,7 @@ export default function AffiliateExtraGraphicSection({
     form.append('file', file)
     try {
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/${image._id}/replace`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${image._id}/replace`,
         {
           method: 'POST',
           body: form,
@@ -110,7 +110,7 @@ export default function AffiliateExtraGraphicSection({
     setReplacing(true)
     try {
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/${image._id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${image._id}`,
         {
           method: 'DELETE',
           credentials: 'include',

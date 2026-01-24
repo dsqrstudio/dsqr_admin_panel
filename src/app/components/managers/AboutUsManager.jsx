@@ -21,7 +21,7 @@ export default function AboutUsManager() {
   const handleDeleteBefore = async (id) => {
     if (!window.confirm('Delete this before/after video pair?')) return
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -40,7 +40,7 @@ export default function AboutUsManager() {
   const handleDeleteAfter = async (id) => {
     if (!window.confirm('Remove the after video?')) return
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -64,9 +64,9 @@ export default function AboutUsManager() {
     setReplaceType(type)
     const formData = new FormData()
     formData.append('file', file)
-    let endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace`
+    let endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}/replace`
     if (type === 'after') {
-      endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace-after`
+      endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}/replace-after`
     }
     try {
       const res = await fetch(endpoint, {
@@ -95,7 +95,7 @@ export default function AboutUsManager() {
     setLoading(true)
     try {
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/category/about_us_before_after?subsection=About%20Us%20Before%2FAfter%20Video`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/about_us_before_after?subsection=About%20Us%20Before%2FAfter%20Video`,
         { credentials: 'include' }
       )
       const data = await res.json()
@@ -129,7 +129,7 @@ export default function AboutUsManager() {
     formData.append('category', 'about_us_before_after')
     formData.append('subsection', 'About Us Before/After Video')
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -156,7 +156,7 @@ export default function AboutUsManager() {
     formData.append('subsection', 'About Us Before/After Video')
     formData.append('beforeId', beforeId)
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`, {
         method: 'POST',
         body: formData,
         credentials: 'include',

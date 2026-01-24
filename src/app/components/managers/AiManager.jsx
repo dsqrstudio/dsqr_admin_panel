@@ -28,7 +28,7 @@ export default function AiManager({ activeSub }) {
   // Fetch all AI Lab items
   const fetchItems = () => {
     setLoading(true)
-    fetch(`${API_BASE_URL}/api/admin/media-items/category/${API_CATEGORY}`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`, {
       credentials: 'include',
     })
       .then((res) => res.json())
@@ -91,7 +91,7 @@ export default function AiManager({ activeSub }) {
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
             method: 'DELETE',
             credentials: 'include',
           })

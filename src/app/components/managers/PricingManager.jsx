@@ -55,7 +55,7 @@ export default function PricingManager() {
     const loadPricing = async () => {
       try {
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        const response = await fetch(`${API_BASE_URL}/api/admin/pricing`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/pricing`, {
           credentials: 'include'
         });
         
@@ -226,7 +226,7 @@ export default function PricingManager() {
       const payload = sanitizeForSave(prices);
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
       
-      const response = await fetch(`${API_BASE_URL}/api/admin/pricing`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/pricing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

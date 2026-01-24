@@ -61,7 +61,7 @@ const VideoManager = ({ activeSub }) => {
     setLoading(true)
     setRefreshing(true)
     fetch(
-      `/api/admin/media-items/category/${category}?subsection=${subsection}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${category}?subsection=${subsection}`,
       {
         credentials: 'include',
       }
