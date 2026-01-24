@@ -54,19 +54,24 @@ export default function Sidebar({
 
   async function handleLogout() {
     try {
-      // Remove JWT from localStorage
-      localStorage.removeItem('dsqr_token')
+      // Call backend to clear httpOnly cookie
+      await fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
     } catch (error) {
-      console.error('Logout failed:', error)
+      console.error('Logout failed:', error);
     } finally {
+      // Remove JWT from localStorage
+      localStorage.removeItem('dsqr_token');
+      // Remove any non-httpOnly cookie (if set)
+      document.cookie = 'dsqr_token=; path=/; max-age=0; SameSite=Lax';
       try {
-        sessionStorage.removeItem('dsqr_logged_in')
+        sessionStorage.removeItem('dsqr_logged_in');
       } catch {}
-      // Force full reload to clear all state and redirect
+      // Redirect and reload
       window.location.href = '/login';
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+      setTimeout(() => window.location.reload(), 100);
     }
   }
 
