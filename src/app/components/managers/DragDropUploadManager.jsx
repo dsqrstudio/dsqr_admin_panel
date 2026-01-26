@@ -87,53 +87,136 @@ export default function DragDropUploadManager({
     setUploadProgress(0)
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('type', isVideo ? 'video' : 'image')
-      if (category) formData.append('category', category)
-      if (subsection) formData.append('subsection', subsection)
-      formData.append('order', items.length)
+      // 1. Request upload URL from backend (pass type)
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/media-items/generate-upload-url`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            category,
+            subsection,
+            originalName: file.name,
+            type: isVideo ? 'video' : 'image',
+          }),
+        },
+      )
+      const uploadInfo = await res.json()
+      if (!uploadInfo.uploadUrl || !uploadInfo.uploadHeaders)
+        throw new Error('Failed to get upload URL')
 
-      // Use XMLHttpRequest for progress
-      const xhr = new window.XMLHttpRequest()
-      xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`, true)
-      xhr.withCredentials = true
-
-      xhr.upload.onprogress = function (event) {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100)
-          setUploadProgress(percent)
+      if (uploadInfo.isVideo) {
+        // Bunny Stream: POST file as FormData
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('title', file.name)
+        setUploadProgress(10)
+        const xhr = new window.XMLHttpRequest()
+        xhr.open('POST', uploadInfo.uploadUrl, true)
+        Object.entries(uploadInfo.uploadHeaders).forEach(([k, v]) =>
+          xhr.setRequestHeader(k, v),
+        )
+        xhr.upload.onprogress = function (event) {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100)
+            setUploadProgress(percent)
+          }
         }
-      }
-
-      xhr.onload = function () {
-        setUploading(false)
-        setUploadProgress(0)
-        try {
-          const result = JSON.parse(xhr.responseText)
-          console.log('[Upload Response]', result)
-          if (xhr.status === 200 && result.success && result.data) {
-            showToast('Upload successful!', 'success')
-            // Just refresh after upload
-            if (typeof onUploadSuccess === 'function') {
-              onUploadSuccess()
+        xhr.onload = async function () {
+          setUploading(false)
+          setUploadProgress(0)
+          if (xhr.status === 201 || xhr.status === 200) {
+            // Bunny Stream returns video info; parse and save metadata
+            let videoData = null
+            try {
+              videoData = JSON.parse(xhr.responseText)
+            } catch {}
+            // Save metadata with guid (backend will construct HLS and poster URLs)
+            const metaRes = await fetch(
+              `${API_BASE_URL}/api/admin/media-items/save-metadata`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  type: 'video',
+                  guid: videoData?.guid,
+                  category,
+                  subsection,
+                  order: items.length,
+                  description: videoData?.title || file.name,
+                }),
+              },
+            )
+            const meta = await metaRes.json()
+            if (meta.success && meta.data) {
+              showToast('Video upload successful!', 'success')
+              if (typeof onUploadSuccess === 'function') onUploadSuccess()
+            } else {
+              showToast(meta.error || 'Failed to save metadata', 'error')
             }
           } else {
-            console.error('[Upload Error]', result.error)
-            showToast(result.error || 'Upload failed', 'error')
+            showToast('Video upload failed', 'error')
           }
-        } catch (err) {
+        }
+        xhr.onerror = function () {
+          setUploading(false)
+          setUploadProgress(0)
+          showToast('Video upload failed', 'error')
+        }
+        xhr.send(formData)
+      } else {
+        // Bunny Storage: PUT file
+        const xhr = new window.XMLHttpRequest()
+        xhr.open('PUT', uploadInfo.uploadUrl, true)
+        Object.entries(uploadInfo.uploadHeaders).forEach(([k, v]) =>
+          xhr.setRequestHeader(k, v),
+        )
+        xhr.upload.onprogress = function (event) {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100)
+            setUploadProgress(percent)
+          }
+        }
+        xhr.onload = async function () {
+          setUploading(false)
+          setUploadProgress(0)
+          if (xhr.status === 201 || xhr.status === 200) {
+            // Save metadata in backend
+            const metaRes = await fetch(
+              `${API_BASE_URL}/api/admin/media-items/save-metadata`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                  type: 'image',
+                  src: uploadInfo.cdnUrl,
+                  category,
+                  subsection,
+                  order: items.length,
+                }),
+              },
+            )
+            const meta = await metaRes.json()
+            if (meta.success && meta.data) {
+              showToast('Upload successful!', 'success')
+              if (typeof onUploadSuccess === 'function') onUploadSuccess()
+            } else {
+              showToast(meta.error || 'Failed to save metadata', 'error')
+            }
+          } else {
+            showToast('Upload failed', 'error')
+          }
+        }
+        xhr.onerror = function () {
+          setUploading(false)
+          setUploadProgress(0)
           showToast('Upload failed', 'error')
         }
+        xhr.send(file)
       }
-
-      xhr.onerror = function () {
-        setUploading(false)
-        setUploadProgress(0)
-        showToast('Upload failed', 'error')
-      }
-
-      xhr.send(formData)
     } catch (error) {
       setUploading(false)
       setUploadProgress(0)
@@ -204,10 +287,13 @@ export default function DragDropUploadManager({
             />
           )
         }
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}`, {
-          method: 'DELETE',
-          credentials: 'include',
-        })
+        await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}`,
+          {
+            method: 'DELETE',
+            credentials: 'include',
+          },
+        )
       } catch (error) {
         console.error('Delete error:', error)
         showToast('Failed to delete item', 'error')
@@ -263,7 +349,7 @@ export default function DragDropUploadManager({
       xhr.open(
         'POST',
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}/replace`,
-        true
+        true,
       )
       xhr.withCredentials = true
 
@@ -465,7 +551,7 @@ export default function DragDropUploadManager({
                     if (!videoSrc) {
                       showToast(
                         'Video is still processing. Please wait until preview is ready.',
-                        'warning'
+                        'warning',
                       )
                       return
                     }
@@ -509,7 +595,7 @@ export default function DragDropUploadManager({
                         // Only show fallback icon for videos
                         if (isVideo) {
                           const fallback = e.target.parentNode.querySelector(
-                            '.video-fallback-icon'
+                            '.video-fallback-icon',
                           )
                           if (fallback) fallback.style.display = 'flex'
                         }

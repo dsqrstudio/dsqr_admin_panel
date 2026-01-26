@@ -307,7 +307,7 @@ export default function DashboardHome() {
       </div>
 
       {/* Promotional Discount */}
-      <div className="bg-gradient-to-r from-slate-50 to-gray-100 rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 hover:shadow-md transition-shadow duration-300 mb-6 sm:mb-8">
+      {/* <div className="bg-gradient-to-r from-slate-50 to-gray-100 rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 hover:shadow-md transition-shadow duration-300 mb-6 sm:mb-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-2 sm:p-2.5 rounded-lg bg-slate-200">
@@ -356,7 +356,7 @@ export default function DashboardHome() {
             </div>
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Media Counters */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">

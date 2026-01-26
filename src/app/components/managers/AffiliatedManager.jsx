@@ -70,10 +70,13 @@ export default function AffiliatedManager() {
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          })
+          await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`,
+            {
+              method: 'DELETE',
+              credentials: 'include',
+            }
+          )
         })
       )
     } catch (err) {

@@ -13,9 +13,12 @@ export default function TeamPhotosManager() {
   // Fetch items function
   const fetchItems = () => {
     setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`, {
-      credentials: 'include',
-    })
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`,
+      {
+        credentials: 'include',
+      }
+    )
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {

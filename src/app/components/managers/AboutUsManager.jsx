@@ -21,10 +21,13 @@ export default function AboutUsManager() {
   const handleDeleteBefore = async (id) => {
     if (!window.confirm('Delete this before/after video pair?')) return
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        }
+      )
       if (res.ok) {
         showToast('Pair deleted successfully', 'success')
       } else {
@@ -40,12 +43,15 @@ export default function AboutUsManager() {
   const handleDeleteAfter = async (id) => {
     if (!window.confirm('Remove the after video?')) return
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ after: '', afterPoster: '' }),
-      })
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`,
+        {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ after: '', afterPoster: '' }),
+        }
+      )
       if (res.ok) {
         showToast('After video removed', 'success')
       } else {
@@ -129,11 +135,14 @@ export default function AboutUsManager() {
     formData.append('category', 'about_us_before_after')
     formData.append('subsection', 'About Us Before/After Video')
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      })
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`,
+        {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        }
+      )
       const data = await res.json()
       if (data.success) {
         showToast('Before video uploaded!', 'success')
@@ -156,11 +165,14 @@ export default function AboutUsManager() {
     formData.append('subsection', 'About Us Before/After Video')
     formData.append('beforeId', beforeId)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      })
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`,
+        {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        }
+      )
       const data = await res.json()
       if (data.success) {
         showToast('After video uploaded!', 'success')

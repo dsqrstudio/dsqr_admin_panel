@@ -59,17 +59,20 @@ export default function SettingsManager() {
           ? localStorage.getItem('dsqr_token')
           : null
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword,
-        }),
-      })
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/change-password`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            currentPassword: passwordData.currentPassword,
+            newPassword: passwordData.newPassword,
+          }),
+        }
+      )
 
       const data = await response.json()
       console.log('Password change response:', data)

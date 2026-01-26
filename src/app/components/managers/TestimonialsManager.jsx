@@ -77,9 +77,12 @@ export default function TestimonialsManager() {
   useEffect(() => {
     const loadTestimonials = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials`, {
-          credentials: 'include',
-        })
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials`,
+          {
+            credentials: 'include',
+          }
+        )
 
         if (response.ok) {
           const result = await response.json()

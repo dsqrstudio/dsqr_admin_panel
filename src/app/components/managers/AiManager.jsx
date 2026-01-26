@@ -28,9 +28,12 @@ export default function AiManager({ activeSub }) {
   // Fetch all AI Lab items
   const fetchItems = () => {
     setLoading(true)
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`, {
-      credentials: 'include',
-    })
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`,
+      {
+        credentials: 'include',
+      }
+    )
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
@@ -91,10 +94,13 @@ export default function AiManager({ activeSub }) {
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`, {
-            method: 'DELETE',
-            credentials: 'include',
-          })
+          await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`,
+            {
+              method: 'DELETE',
+              credentials: 'include',
+            }
+          )
         })
       )
       showToast('Deleted selected items', 'success')

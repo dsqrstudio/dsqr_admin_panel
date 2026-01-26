@@ -58,20 +58,20 @@ export default function Sidebar({
       await fetch(`${API_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
-      });
+      })
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout failed:', error)
     } finally {
       // Remove JWT from localStorage
-      localStorage.removeItem('dsqr_token');
+      localStorage.removeItem('dsqr_token')
       // Remove any non-httpOnly cookie (if set)
-      document.cookie = 'dsqr_token=; path=/; max-age=0; SameSite=Lax';
+      document.cookie = 'dsqr_token=; path=/; max-age=0; SameSite=Lax'
       try {
-        sessionStorage.removeItem('dsqr_logged_in');
+        sessionStorage.removeItem('dsqr_logged_in')
       } catch {}
       // Redirect and reload
-      window.location.href = '/login';
-      setTimeout(() => window.location.reload(), 100);
+      window.location.href = '/login'
+      setTimeout(() => window.location.reload(), 100)
     }
   }
 

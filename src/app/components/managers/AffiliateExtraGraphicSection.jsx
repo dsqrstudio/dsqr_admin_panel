@@ -58,11 +58,14 @@ export default function AffiliateExtraGraphicSection({
     form.append('category', 'extras')
     form.append('subsection', subsection)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`, {
-        method: 'POST',
-        body: form,
-        credentials: 'include',
-      })
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`,
+        {
+          method: 'POST',
+          body: form,
+          credentials: 'include',
+        }
+      )
       const data = await res.json()
       if (res.ok && data.success) {
         showToast('Image uploaded!', 'success')

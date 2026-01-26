@@ -60,7 +60,7 @@ function useToasts() {
   useEffect(() => {
     if (!stack.length) return
     const timers = stack.map((t) =>
-      setTimeout(() => setStack((s) => s.filter((x) => x.id !== t.id)), 3000)
+      setTimeout(() => setStack((s) => s.filter((x) => x.id !== t.id)), 3000),
     )
     return () => timers.forEach((t) => clearTimeout(t))
   }, [stack])
@@ -140,7 +140,7 @@ export default function MediaListManager({
                 // Only show items matching the current subsection (if set)
                 dataArray = result.data
                   .filter(
-                    (item) => !subsection || item.subsection === subsection
+                    (item) => !subsection || item.subsection === subsection,
                   )
                   .map((item) => ({
                     id: item._id,
@@ -257,7 +257,7 @@ export default function MediaListManager({
                 alt: item.alt || '',
                 order: item.order || 0,
                 active: item.active !== undefined ? item.active : true,
-              }))
+              })),
             ),
           })
         } else {
@@ -279,9 +279,9 @@ export default function MediaListManager({
                   subsection: subsection || 'default',
                   order: item.order || 0,
                   active: item.active !== undefined ? item.active : true,
-                }))
+                })),
               ),
-            }
+            },
           )
         }
 
@@ -410,7 +410,7 @@ export default function MediaListManager({
                 poster: edited.poster || it.poster,
                 subsection: subsection || 'default',
               }
-            : it
+            : it,
         )
 
         let response
@@ -428,7 +428,7 @@ export default function MediaListManager({
                 alt: item.alt || '',
                 order: item.order || 0,
                 active: item.active !== undefined ? item.active : true,
-              }))
+              })),
             ),
           })
         } else {
@@ -450,9 +450,9 @@ export default function MediaListManager({
                   subsection: subsection || 'default',
                   order: item.order || 0,
                   active: item.active !== undefined ? item.active : true,
-                }))
+                })),
               ),
-            }
+            },
           )
         }
 
@@ -506,8 +506,8 @@ export default function MediaListManager({
         s.map((it) =>
           it.id === edited.id
             ? { ...it, src: ex, poster: edited.poster || it.poster }
-            : it
-        )
+            : it,
+        ),
       )
       setEditing(null)
       push('success', 'Saved')
@@ -544,7 +544,7 @@ export default function MediaListManager({
                 alt: item.alt || '',
                 order: item.order || 0,
                 active: item.active !== undefined ? item.active : true,
-              }))
+              })),
             ),
           })
         } else {
@@ -565,9 +565,9 @@ export default function MediaListManager({
                   subsection: subsection || 'default',
                   order: item.order || 0,
                   active: item.active !== undefined ? item.active : true,
-                }))
+                })),
               ),
-            }
+            },
           )
         }
 
@@ -661,24 +661,24 @@ export default function MediaListManager({
           const bgClass = isError
             ? 'bg-rose-50'
             : isSuccess
-            ? 'bg-amber-50'
-            : isDeleted
-            ? 'bg-rose-50'
-            : 'bg-slate-900'
+              ? 'bg-amber-50'
+              : isDeleted
+                ? 'bg-rose-50'
+                : 'bg-slate-900'
           const borderClass = isError
             ? 'border-rose-200'
             : isSuccess
-            ? 'border-amber-200'
-            : isDeleted
-            ? 'border-rose-200'
-            : 'border-slate-900'
+              ? 'border-amber-200'
+              : isDeleted
+                ? 'border-rose-200'
+                : 'border-slate-900'
           const textClass = isError
             ? 'text-rose-700'
             : isSuccess
-            ? 'text-amber-900'
-            : isDeleted
-            ? 'text-rose-700'
-            : 'text-white'
+              ? 'text-amber-900'
+              : isDeleted
+                ? 'text-rose-700'
+                : 'text-white'
 
           return (
             <div
@@ -734,9 +734,9 @@ export default function MediaListManager({
                                   item.active !== undefined
                                     ? item.active
                                     : true,
-                              }))
+                              })),
                             ),
-                          }
+                          },
                         )
                       } else {
                         // Use media items bulk endpoint with required subsection
@@ -760,9 +760,9 @@ export default function MediaListManager({
                                   item.active !== undefined
                                     ? item.active
                                     : true,
-                              }))
+                              })),
                             ),
-                          }
+                          },
                         )
                       }
 
@@ -853,40 +853,150 @@ export default function MediaListManager({
                         if (!uploadFile) return
                         try {
                           setUploading(true)
-                          const form = new FormData()
-                          form.append('file', uploadFile)
-                          form.append('category', category)
-                          if (subsection) form.append('subsection', subsection)
-                          const resp = await fetch(
-                            `${API_BASE_URL}/api/admin/media-items/upload`,
+                          const isVideo = uploadFile.type.startsWith('video/')
+                          // 1. Request upload URL from backend (pass type)
+                          const res = await fetch(
+                            `${API_BASE_URL}/api/admin/media-items/generate-upload-url`,
                             {
                               method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
                               credentials: 'include',
-                              body: form,
-                            }
+                              body: JSON.stringify({
+                                category,
+                                subsection,
+                                originalName: uploadFile.name,
+                                type: isVideo ? 'video' : 'image',
+                              }),
+                            },
                           )
-                          const json = await resp.json().catch(() => null)
-                          if (!resp.ok || !json?.success) {
-                            throw new Error(json?.error || 'Upload failed')
+                          const uploadInfo = await res.json()
+                          if (
+                            !uploadInfo.uploadUrl ||
+                            !uploadInfo.uploadHeaders
+                          )
+                            throw new Error('Failed to get upload URL')
+
+                          if (uploadInfo.isVideo) {
+                            // Bunny Stream: POST file as FormData
+                            const formData = new FormData()
+                            formData.append('file', uploadFile)
+                            formData.append('title', uploadFile.name)
+                            let videoData = null
+                            await new Promise((resolve, reject) => {
+                              const xhr = new window.XMLHttpRequest()
+                              xhr.open('POST', uploadInfo.uploadUrl, true)
+                              Object.entries(uploadInfo.uploadHeaders).forEach(
+                                ([k, v]) => xhr.setRequestHeader(k, v),
+                              )
+                              xhr.onload = function () {
+                                if (xhr.status === 201 || xhr.status === 200) {
+                                  try { videoData = JSON.parse(xhr.responseText) } catch {}
+                                  resolve()
+                                } else reject(new Error('Video upload failed'))
+                              }
+                              xhr.onerror = function () {
+                                reject(new Error('Video upload failed'))
+                              }
+                              xhr.send(formData)
+                            })
+                            // Save metadata (send guid, backend will construct HLS and poster URLs)
+                            const metaRes = await fetch(
+                              `${API_BASE_URL}/api/admin/media-items/save-metadata`,
+                              {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({
+                                  type: 'video',
+                                  guid: videoData?.guid,
+                                  category,
+                                  subsection,
+                                  order: items.length,
+                                  description: videoData?.title || uploadFile.name,
+                                }),
+                              },
+                            )
+                            const meta = await metaRes.json()
+                            if (meta.success && meta.data) {
+                              const d = meta.data
+                              const newItem = {
+                                id: d._id,
+                                type: d.type,
+                                src: d.src,
+                                poster: d.poster || '',
+                                before: d.before || '',
+                                after: d.after || '',
+                                section: d.section || section || category,
+                                subsection:
+                                  d.subsection || subsection || 'default',
+                              }
+                              setItems((s) => [newItem, ...s])
+                              setUploadFile(null)
+                              const inp =
+                                document.querySelector('input[type="file"]')
+                              if (inp) inp.value = ''
+                              push('success', 'Video uploaded to Bunny Stream')
+                            } else {
+                              throw new Error(meta.error || 'Upload failed')
+                            }
+                          } else {
+                            // Bunny Storage: PUT file
+                            await new Promise((resolve, reject) => {
+                              const xhr = new window.XMLHttpRequest()
+                              xhr.open('PUT', uploadInfo.uploadUrl, true)
+                              Object.entries(uploadInfo.uploadHeaders).forEach(
+                                ([k, v]) => xhr.setRequestHeader(k, v),
+                              )
+                              xhr.onload = function () {
+                                if (xhr.status === 201 || xhr.status === 200)
+                                  resolve()
+                                else reject(new Error('Upload failed'))
+                              }
+                              xhr.onerror = function () {
+                                reject(new Error('Upload failed'))
+                              }
+                              xhr.send(uploadFile)
+                            })
+                            // Save metadata in backend
+                            const metaRes = await fetch(
+                              `${API_BASE_URL}/api/admin/media-items/save-metadata`,
+                              {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({
+                                  type: 'image',
+                                  src: uploadInfo.cdnUrl,
+                                  category,
+                                  subsection,
+                                  order: items.length,
+                                }),
+                              },
+                            )
+                            const meta = await metaRes.json()
+                            if (meta.success && meta.data) {
+                              const d = meta.data
+                              const newItem = {
+                                id: d._id,
+                                type: d.type,
+                                src: d.src,
+                                poster: d.poster || '',
+                                before: d.before || '',
+                                after: d.after || '',
+                                section: d.section || section || category,
+                                subsection:
+                                  d.subsection || subsection || 'default',
+                              }
+                              setItems((s) => [newItem, ...s])
+                              setUploadFile(null)
+                              const inp =
+                                document.querySelector('input[type="file"]')
+                              if (inp) inp.value = ''
+                              push('success', 'Uploaded to Bunny Storage')
+                            } else {
+                              throw new Error(meta.error || 'Upload failed')
+                            }
                           }
-                          const d = json.data
-                          const newItem = {
-                            id: d._id,
-                            type: d.type,
-                            src: d.src,
-                            poster: d.poster || '',
-                            before: d.before || '',
-                            after: d.after || '',
-                            section: d.section || section || category,
-                            subsection: d.subsection || subsection || 'default',
-                          }
-                          setItems((s) => [newItem, ...s])
-                          setUploadFile(null)
-                          // reset the file input UI
-                          const inp =
-                            document.querySelector('input[type="file"]')
-                          if (inp) inp.value = ''
-                          push('success', 'Uploaded to Bunny')
                         } catch (err) {
                           console.error('Upload error', err)
                           push('error', err?.message || 'Upload failed')
@@ -1071,7 +1181,7 @@ export default function MediaListManager({
                     form.append('file', replaceFile)
                     const resp = await fetch(
                       `${API_BASE_URL}/api/admin/media-items/${editing.id}/replace`,
-                      { method: 'POST', credentials: 'include', body: form }
+                      { method: 'POST', credentials: 'include', body: form },
                     )
                     const json = await resp.json().catch(() => null)
                     if (!resp.ok || !json?.success)
@@ -1096,7 +1206,7 @@ export default function MediaListManager({
                     form2.append('poster', replacePosterFile)
                     const resp2 = await fetch(
                       `${API_BASE_URL}/api/admin/media-items/${editing.id}/replace-poster`,
-                      { method: 'POST', credentials: 'include', body: form2 }
+                      { method: 'POST', credentials: 'include', body: form2 },
                     )
                     const json2 = await resp2.json().catch(() => null)
                     if (!resp2.ok || !json2?.success)
@@ -1108,7 +1218,7 @@ export default function MediaListManager({
                   }
 
                   setItems((list) =>
-                    list.map((it) => (it.id === editing.id ? updated : it))
+                    list.map((it) => (it.id === editing.id ? updated : it)),
                   )
                   setEditing(null)
                   setReplaceFile(null)
