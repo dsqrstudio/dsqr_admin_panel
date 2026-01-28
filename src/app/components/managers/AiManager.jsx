@@ -67,8 +67,11 @@ export default function AiManager({ activeSub }) {
 
   // Save handler (local update only)
   const handleSave = async (newItems) => {
+    // Only show toast if not a delete (i.e., items count did not decrease)
+    if (newItems.length >= allItems.length) {
+      showToast('Saved successfully!', 'success')
+    }
     setAllItems(newItems)
-    showToast('Saved successfully!', 'success')
     fetchItems()
   }
 
