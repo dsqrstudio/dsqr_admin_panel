@@ -146,14 +146,11 @@ export default function AboutUsManager() {
     formData.append('category', 'about_us_before_after')
     formData.append('subsection', 'About Us Before/After Video')
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/upload`,
-        {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-        },
-      )
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      })
       const data = await res.json()
       if (data.success) {
         showToast('Before video uploaded!', 'success')
@@ -178,14 +175,11 @@ export default function AboutUsManager() {
     formData.append('subsection', 'About Us Before/After Video')
     formData.append('beforeId', beforeId)
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/upload`,
-        {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-        },
-      )
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      })
       const data = await res.json()
       if (data.success) {
         showToast('After video uploaded!', 'success')

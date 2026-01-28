@@ -30,7 +30,7 @@ export default function AffiliateExtraGraphicSection({
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/extras?subsection=${subsection}`,
-        { credentials: 'include' }
+        { credentials: 'include' },
       )
       const data = await res.json()
       if (data.success && Array.isArray(data.data) && data.data.length > 0) {
@@ -50,57 +50,88 @@ export default function AffiliateExtraGraphicSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subsection])
 
-  // Upload new image
+  // Direct upload new image to Bunny
   const handleUpload = async (file) => {
     setUploading(true)
-    const form = new FormData()
-    form.append('file', file)
-    form.append('category', 'extras')
-    form.append('subsection', subsection)
     try {
+      // 1. Request upload URL/config from backend
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/upload`,
+        `${API_BASE_URL}/api/admin/media-items/generate-upload-url`,
         {
           method: 'POST',
-          body: form,
+          headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-        }
+          body: JSON.stringify({
+            type: 'image',
+            category: 'extras',
+            subsection,
+          }),
+        },
       )
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showToast('Image uploaded!', 'success')
-        setImage(data.data)
-      } else {
-        showToast(data.error || 'Upload failed', 'error')
+      const uploadInfo = await res.json()
+      if (!uploadInfo.uploadUrl || !uploadInfo.uploadHeaders) {
+        showToast('Failed to get upload URL', 'error')
+        setUploading(false)
+        return
       }
+      // 2. Upload file directly to Bunny
+      const xhr = new window.XMLHttpRequest()
+      xhr.open('PUT', uploadInfo.uploadUrl, true)
+      Object.entries(uploadInfo.uploadHeaders).forEach(([k, v]) =>
+        xhr.setRequestHeader(k, v),
+      )
+      xhr.upload.onprogress = function (event) {
+        // Optionally, show progress
+      }
+      xhr.onerror = function () {
+        showToast('Direct upload failed', 'error')
+        setUploading(false)
+      }
+      xhr.onload = async function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          // 3. Save metadata to backend
+          const metaRes = await fetch(
+            `${API_BASE_URL}/api/admin/media-items/save-metadata`,
+            {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                src: uploadInfo.cdnUrl,
+                category: 'extras',
+                subsection,
+                type: 'image',
+              }),
+            },
+          )
+          const metaData = await metaRes.json()
+          if (metaRes.ok && metaData.success) {
+            showToast('Image uploaded!', 'success')
+            setImage(metaData.data)
+          } else {
+            showToast(metaData.error || 'Metadata save failed', 'error')
+          }
+        } else {
+          showToast('Direct upload failed', 'error')
+        }
+        setUploading(false)
+      }
+      xhr.send(file)
     } catch (err) {
       showToast('Upload failed', 'error')
+      setUploading(false)
     }
-    setUploading(false)
   }
 
-  // Replace image
+  // Direct replace image (delete old, upload new)
   const handleReplace = async (file) => {
     if (!image) return
     setReplacing(true)
-    const form = new FormData()
-    form.append('file', file)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${image._id}/replace`,
-        {
-          method: 'POST',
-          body: form,
-          credentials: 'include',
-        }
-      )
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showToast('Image replaced!', 'success')
-        setImage(data.data)
-      } else {
-        showToast(data.error || 'Replace failed', 'error')
-      }
+      // 1. Delete old image
+      await handleDelete()
+      // 2. Upload new image
+      await handleUpload(file)
     } catch (err) {
       showToast('Replace failed', 'error')
     }
@@ -117,7 +148,7 @@ export default function AffiliateExtraGraphicSection({
         {
           method: 'DELETE',
           credentials: 'include',
-        }
+        },
       )
       if (res.ok) {
         showToast('Image deleted', 'success')
