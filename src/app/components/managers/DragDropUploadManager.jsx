@@ -107,16 +107,57 @@ export default function DragDropUploadManager({
         throw new Error('Failed to get upload URL')
 
       if (uploadInfo.isVideo) {
-        // Bunny Stream: POST file as FormData
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('title', file.name)
+        // Bunny Stream: (1) POST JSON to create video, (2) PUT binary to upload file
         setUploadProgress(10)
-        const xhr = new window.XMLHttpRequest()
-        xhr.open('POST', uploadInfo.uploadUrl, true)
-        Object.entries(uploadInfo.uploadHeaders).forEach(([k, v]) =>
-          xhr.setRequestHeader(k, v),
+        // 1. Create video entry (POST JSON)
+        const configRes = await fetch(
+          `${API_BASE_URL}/api/admin/media-items/config`,
+          {
+            method: 'GET',
+            credentials: 'include',
+          },
         )
+        const config = await configRes.json()
+        if (!config.success || !config.libraryId || !config.apiKey) {
+          showToast('Failed to get Bunny config', 'error')
+          setUploading(false)
+          setUploadProgress(0)
+          return
+        }
+        const createRes = await fetch(
+          `https://video.bunnycdn.com/library/${config.libraryId}/videos`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              AccessKey: config.apiKey,
+            },
+            body: JSON.stringify({ title: file.name }),
+          },
+        )
+        if (!createRes.ok) {
+          setUploading(false)
+          setUploadProgress(0)
+          const errText = await createRes.text().catch(() => '')
+          showToast(
+            `Bunny create error: ${errText || createRes.status}`,
+            'error',
+          )
+          return
+        }
+        const videoData = await createRes.json()
+        if (!videoData.guid) {
+          setUploading(false)
+          setUploadProgress(0)
+          showToast('No GUID returned from Bunny', 'error')
+          return
+        }
+        // 2. PUT raw file to Bunny
+        const uploadUrl = `https://video.bunnycdn.com/library/${config.libraryId}/videos/${videoData.guid}`
+        const xhr = new window.XMLHttpRequest()
+        xhr.open('PUT', uploadUrl, true)
+        xhr.setRequestHeader('Content-Type', file.type)
+        xhr.setRequestHeader('AccessKey', config.apiKey)
         xhr.upload.onprogress = function (event) {
           if (event.lengthComputable) {
             const percent = Math.round((event.loaded / event.total) * 100)
@@ -127,11 +168,6 @@ export default function DragDropUploadManager({
           setUploading(false)
           setUploadProgress(0)
           if (xhr.status === 201 || xhr.status === 200) {
-            // Bunny Stream returns video info; parse and save metadata
-            let videoData = null
-            try {
-              videoData = JSON.parse(xhr.responseText)
-            } catch {}
             // Save metadata with guid (backend will construct HLS and poster URLs)
             const metaRes = await fetch(
               `${API_BASE_URL}/api/admin/media-items/save-metadata`,
@@ -157,15 +193,35 @@ export default function DragDropUploadManager({
               showToast(meta.error || 'Failed to save metadata', 'error')
             }
           } else {
-            showToast('Video upload failed', 'error')
+            let errMsg = 'Video upload failed'
+            try {
+              errMsg = xhr.responseText || errMsg
+            } catch {}
+            showToast(errMsg, 'error')
+            console.error(
+              '[BUNNY ERROR]',
+              xhr.status,
+              xhr.statusText,
+              xhr.responseText,
+            )
           }
         }
         xhr.onerror = function () {
           setUploading(false)
           setUploadProgress(0)
-          showToast('Video upload failed', 'error')
+          let errMsg = 'Video upload failed'
+          try {
+            errMsg = xhr.responseText || errMsg
+          } catch {}
+          showToast(errMsg, 'error')
+          console.error(
+            '[BUNNY ERROR]',
+            xhr.status,
+            xhr.statusText,
+            xhr.responseText,
+          )
         }
-        xhr.send(formData)
+        xhr.send(file)
       } else {
         // Bunny Storage: PUT file
         const xhr = new window.XMLHttpRequest()
