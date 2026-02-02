@@ -1,38 +1,14 @@
-// admin/components/managers/TestimonialsManager.jsx
 'use client'
 
 import React, { useRef, useState, useEffect } from 'react'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
 
-/* same SAMPLE data as before */
-const SAMPLE = [
-  {
-    id: 1,
-    name: 'Jack',
-    company: 'Ex-CEO, AllThingsAl',
-    image: 'https://dsqrstudio.b-cdn.net/Graphics/Ad%20creatives/1.png?w=200',
-    text: "We've worked with 4 other editing agencies before and DSQR Studio and Div's team are THE BEST.",
-    stats: {
-      editing_time: '100',
-      cost: '3.7',
-      videos: '20',
-    },
-    _editing: false,
-  },
-]
-
-function clone(v) {
-  return JSON.parse(JSON.stringify(v))
+// --- Helper Functions ---
+function clone(obj) {
+  try {
+    return JSON.parse(JSON.stringify(obj))
+  } catch (e) {
+    return obj
+  }
 }
 
 function Toasts({ items }) {
@@ -46,8 +22,8 @@ function Toasts({ items }) {
             t.type === 'success'
               ? 'bg-green-50 border-green-200 text-green-900'
               : t.type === 'error'
-              ? 'bg-red-50 border-red-200 text-red-900'
-              : 'bg-sky-50 border-sky-200 text-sky-900'
+                ? 'bg-red-50 border-red-200 text-red-900'
+                : 'bg-sky-50 border-sky-200 text-sky-900'
           }`}
         >
           <div className="font-semibold text-sm">{t.title}</div>
@@ -58,6 +34,7 @@ function Toasts({ items }) {
   )
 }
 
+// --- Main Component ---
 export default function TestimonialsManager() {
   const [items, setItems] = useState([])
   const savedRef = useRef([])
@@ -65,53 +42,86 @@ export default function TestimonialsManager() {
   const [pendingDelete, setPendingDelete] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState({}) // { [id]: { field: message } }
-
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-
-  // Keep a map of refs to inputs (optional but handy)
-  const inputsRef = useRef({})
+  const [errors, setErrors] = useState({})
+  const [uploadingImageId, setUploadingImageId] = useState(null)
 
   // Load testimonials from backend
   useEffect(() => {
     const loadTestimonials = async () => {
+      setLoading(true)
       try {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials`,
-          {
-            credentials: 'include',
-          }
+          { credentials: 'include' },
         )
-
         if (response.ok) {
           const result = await response.json()
           if (result.success) {
-            const formattedItems = result.data.map((item) => ({
-              id: item._id,
-              name: item.name,
-              company: item.company,
-              image: item.image,
-              text: item.text,
-              stats: item.stats,
+            const formatted = result.data.map((item) => ({
+              id: item.id || item._id,
+              name: item.name || '',
+              company: item.company || '',
+              image: item.image || '',
+              text: item.text || '',
+              highlight: item.highlight || '',
+              stats: item.stats
+                ? clone(item.stats)
+                : { editing_time: '', cost: '', videos: '' },
               order: item.order,
               active: item.active,
               _editing: false,
             }))
-            setItems(formattedItems)
-            savedRef.current = clone(formattedItems)
+            setItems(formatted)
+            savedRef.current = clone(formatted)
           }
         }
       } catch (error) {
-        console.error('Error loading testimonials:', error)
         pushToast('error', 'Load failed', 'Failed to load testimonials')
       } finally {
         setLoading(false)
       }
     }
-
     loadTestimonials()
   }, [])
+
+  // Action: Image Upload
+  async function handleImageUpload(id, file) {
+    if (!file) return
+    setUploadingImageId(id)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const isMongoId = /^[a-f\d]{24}$/i.test(id)
+      const url = isMongoId
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}/replace-image`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/upload`
+
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      if (!res.ok) throw new Error('Upload failed')
+      const data = await res.json()
+      setItems((arr) =>
+        arr.map((it) =>
+          it.id === id
+            ? {
+                ...it,
+                image: isMongoId ? data.data.image : data.url,
+                _editing: true,
+              }
+            : it,
+        ),
+      )
+      pushToast('success', 'Image updated', 'Image set successfully.')
+    } catch (err) {
+      pushToast('error', 'Image upload failed', err.message)
+    } finally {
+      setUploadingImageId(null)
+    }
+  }
 
   function pushToast(type, title, message = '') {
     const id = Date.now() + Math.random().toString(16).slice(2)
@@ -120,24 +130,23 @@ export default function TestimonialsManager() {
   }
 
   function add() {
-    const id = Date.now()
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2)
     const newItem = {
       id,
       name: '',
       company: '',
       image: '',
       text: '',
-      stats: { editing_time: '0', cost: '0', videos: '0' },
+      highlight: '',
+      stats: { editing_time: '', cost: '', videos: '' },
       _editing: true,
     }
     setItems((s) => [newItem, ...s])
     pushToast(
       'info',
       'Added',
-      'New testimonial created — enter details and save.'
+      'New testimonial created — enter details and save.',
     )
-
-    // schedule focus for the newly created item after DOM updates
     setTimeout(() => {
       const el = document.getElementById(`name-${id}`)
       if (el) el.focus()
@@ -147,23 +156,17 @@ export default function TestimonialsManager() {
   async function doDelete(id) {
     setSaving(true)
     try {
-      // If it's not a Mongo ObjectId, it's a temporary unsaved item; remove locally
-      if (!isMongoId(id)) {
+      if (!/^[a-f\d]{24}$/i.test(id)) {
         setItems((s) => s.filter((x) => x.id !== id))
         savedRef.current = savedRef.current.filter((x) => x.id !== id)
         pushToast('success', 'Deleted', 'Temporary testimonial removed.')
         setPendingDelete(null)
         return
       }
-
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}`,
-        {
-          method: 'DELETE',
-          credentials: 'include',
-        }
+        { method: 'DELETE', credentials: 'include' },
       )
-
       if (response.ok) {
         setItems((s) => s.filter((x) => x.id !== id))
         savedRef.current = savedRef.current.filter((x) => x.id !== id)
@@ -172,21 +175,18 @@ export default function TestimonialsManager() {
       } else {
         throw new Error('Failed to delete')
       }
-    } catch (error) {
-      console.error('Error deleting testimonial:', error)
+    } catch {
       pushToast('error', 'Delete failed', 'Could not delete testimonial.')
     } finally {
       setSaving(false)
     }
   }
 
-  // Set editing; when enabling, focus the name input for that card
   function setEditing(id, val) {
     setItems((arr) =>
-      arr.map((it) => (it.id === id ? { ...it, _editing: !!val } : it))
+      arr.map((it) => (it.id === id ? { ...it, _editing: !!val } : it)),
     )
     if (val) {
-      // focus after DOM update
       setTimeout(() => {
         const el = document.getElementById(`name-${id}`)
         if (el) el.focus()
@@ -197,8 +197,8 @@ export default function TestimonialsManager() {
   function setField(id, key, value) {
     setItems((arr) =>
       arr.map((it) =>
-        it.id === id ? { ...it, [key]: value, _editing: true } : it
-      )
+        it.id === id ? { ...it, [key]: value, _editing: true } : it,
+      ),
     )
     setErrors((prev) => {
       const e = { ...prev }
@@ -210,13 +210,14 @@ export default function TestimonialsManager() {
       return e
     })
   }
+
   function setStat(id, key, value) {
     setItems((arr) =>
       arr.map((it) =>
         it.id === id
           ? { ...it, stats: { ...it.stats, [key]: value }, _editing: true }
-          : it
-      )
+          : it,
+      ),
     )
     setErrors((prev) => {
       const e = { ...prev }
@@ -239,10 +240,6 @@ export default function TestimonialsManager() {
     }
   }
 
-  function isMongoId(id) {
-    return typeof id === 'string' && /^[a-f\d]{24}$/i.test(id)
-  }
-
   function hasItemChanged(item) {
     const saved = savedRef.current.find((s) => s.id === item.id)
     if (!saved) return true
@@ -257,6 +254,8 @@ export default function TestimonialsManager() {
     if (!item.name || item.name.trim() === '') errs.name = 'Required'
     if (!item.text || item.text.trim() === '') errs.text = 'Required'
     if (!isValidUrl(item.image)) errs.image = 'Image required'
+    if (!item.highlight || item.highlight.trim() === '')
+      errs.highlight = 'Required'
     const videosVal = String(item.stats?.videos ?? '')
     if (!/^\d+$/.test(videosVal)) errs.videos = 'Enter a whole number'
     const costVal = String(item.stats?.cost ?? '')
@@ -277,14 +276,13 @@ export default function TestimonialsManager() {
     if (!hasItemChanged(item)) {
       pushToast('info', 'No changes', 'No changes detected.')
       setItems((arr) =>
-        arr.map((it) => (it.id === id ? { ...it, _editing: false } : it))
+        arr.map((it) => (it.id === id ? { ...it, _editing: false } : it)),
       )
       return
     }
-
     setSaving(true)
     try {
-      const isNew = !isMongoId(id)
+      const isNew = !/^[a-f\d]{24}$/i.test(id)
       const url = isNew
         ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials`
         : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}`
@@ -298,6 +296,7 @@ export default function TestimonialsManager() {
           company: item.company,
           image: item.image,
           text: item.text,
+          highlight: item.highlight,
           stats: {
             editing_time: Number(item.stats.editing_time),
             cost: Number(item.stats.cost),
@@ -307,150 +306,49 @@ export default function TestimonialsManager() {
           active: item.active,
         }),
       })
-
       if (response.ok) {
         const result = await response.json()
         const snapshot = clone(result.data)
         snapshot._editing = false
+        if (snapshot.stats) {
+          snapshot.stats = {
+            editing_time: String(snapshot.stats.editing_time ?? ''),
+            cost: String(snapshot.stats.cost ?? ''),
+            videos: String(snapshot.stats.videos ?? ''),
+          }
+        }
         if (isNew) {
-          // Replace temp item id with Mongo id
-          savedRef.current.unshift({ ...snapshot })
+          savedRef.current.unshift({ ...snapshot, id: snapshot._id })
           setItems((arr) =>
             arr.map((it) =>
               it.id === id
                 ? { ...snapshot, id: snapshot._id, _editing: false }
-                : it
-            )
+                : it,
+            ),
           )
         } else {
           savedRef.current = savedRef.current.filter((s) => s.id !== id)
-          savedRef.current.unshift(snapshot)
+          savedRef.current.unshift({ ...snapshot, id: snapshot._id })
           setItems((arr) =>
-            arr.map((it) => (it.id === id ? { ...it, _editing: false } : it))
+            arr.map((it) =>
+              it.id === id ? { ...it, ...snapshot, _editing: false } : it,
+            ),
           )
         }
         pushToast('success', 'Saved', 'Testimonial saved.')
       } else {
         throw new Error('Failed to save')
       }
-    } catch (e) {
-      console.error(e)
+    } catch {
       pushToast('error', 'Save failed', 'Could not save testimonial.')
     } finally {
       setSaving(false)
     }
   }
 
-  async function saveAll() {
-    const changed = items.filter((it) => hasItemChanged(it))
-    if (!changed.length) {
-      pushToast('info', 'No changes', 'No changes detected — nothing to save.')
-      return
-    }
-    for (const it of changed) {
-      const errMap = validateItem(it)
-      if (Object.keys(errMap).length) {
-        setErrors((prev) => ({ ...prev, [it.id]: errMap }))
-        return
-      }
-    }
-
-    setSaving(true)
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/bulk`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(
-            items.map((item) => ({
-              name: item.name,
-              company: item.company,
-              image: item.image,
-              text: item.text,
-              stats: {
-                editing_time: Number(item.stats.editing_time),
-                cost: Number(item.stats.cost),
-                videos: Number(item.stats.videos),
-              },
-              order: item.order,
-              active: item.active,
-            }))
-          ),
-        }
-      )
-
-      if (response.ok) {
-        const result = await response.json()
-        const newSaved = result.data.map((it) => ({
-          ...clone(it),
-          _editing: false,
-        }))
-        savedRef.current = clone(newSaved)
-        setItems((arr) => arr.map((it) => ({ ...it, _editing: false })))
-        pushToast('success', 'Saved', 'All testimonials saved.')
-      } else {
-        throw new Error('Failed to save')
-      }
-    } catch (e) {
-      console.error(e)
-      pushToast('error', 'Save failed', 'Could not save testimonials.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleImageUpload(id, file) {
-    if (!file) return
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      // If existing record, replace in place; else upload and set URL
-      let data
-      if (isMongoId(id)) {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}/replace-image`,
-          { method: 'POST', credentials: 'include', body: formData }
-        )
-        if (!res.ok) throw new Error('Replace failed')
-        data = await res.json()
-        setItems((arr) =>
-          arr.map((it) =>
-            it.id === id
-              ? { ...it, image: data.data.image, _editing: true }
-              : it
-          )
-        )
-      } else {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/upload`,
-          {
-            method: 'POST',
-            credentials: 'include',
-            body: formData,
-          }
-        )
-        if (!res.ok) throw new Error('Upload failed')
-        data = await res.json()
-        setItems((arr) =>
-          arr.map((it) =>
-            it.id === id ? { ...it, image: data.url, _editing: true } : it
-          )
-        )
-      }
-      pushToast('success', 'Image updated', 'Image set successfully.')
-    } catch (err) {
-      console.error(err)
-      pushToast('error', 'Image upload failed', err.message)
-    }
-  }
-
   return (
     <div className="max-w-7xl mx-auto">
       <Toasts items={toasts} />
-
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold">Testimonials</h2>
@@ -459,7 +357,6 @@ export default function TestimonialsManager() {
             <span className="font-semibold">Edit</span> to modify a testimonial.
           </p>
         </div>
-
         <div className="flex items-center gap-2">
           <button
             onClick={add}
@@ -468,16 +365,8 @@ export default function TestimonialsManager() {
           >
             Add
           </button>
-          <button
-            onClick={saveAll}
-            className="rounded bg-[#cff000] px-3 py-2 text-sm font-semibold"
-            disabled={saving || loading}
-          >
-            {saving ? 'Saving...' : loading ? 'Loading...' : 'Save All'}
-          </button>
         </div>
       </div>
-
       <div className="space-y-4">
         {items.map((t) => (
           <div
@@ -486,8 +375,12 @@ export default function TestimonialsManager() {
           >
             <div className="w-full lg:w-44 shrink-0">
               <div className="relative h-36 w-full lg:h-44 lg:w-40 overflow-hidden rounded-md bg-gray-100 border flex items-center justify-center">
-                {isValidUrl(t.image) ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                {uploadingImageId === t.id ? (
+                  <div className="flex flex-col items-center justify-center w-full h-full">
+                    <div className="loader mb-2" />
+                    <div className="text-xs text-slate-500">Uploading...</div>
+                  </div>
+                ) : isValidUrl(t.image) ? (
                   <img
                     src={t.image}
                     alt={t.name || 'testimonial'}
@@ -517,9 +410,10 @@ export default function TestimonialsManager() {
                   accept="image/*"
                   className="absolute inset-0 opacity-0 cursor-pointer"
                   title=""
+                  disabled={uploadingImageId === t.id}
                   onChange={(e) => handleImageUpload(t.id, e.target.files?.[0])}
                 />
-                {isValidUrl(t.image) && (
+                {isValidUrl(t.image) && uploadingImageId !== t.id && (
                   <div className="absolute bottom-1 right-1">
                     <button
                       className="rounded bg-black/70 text-white text-xs px-2 py-1"
@@ -536,7 +430,6 @@ export default function TestimonialsManager() {
                 )}
               </div>
             </div>
-
             <div className="flex-1 flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div className="flex-1">
@@ -546,9 +439,7 @@ export default function TestimonialsManager() {
                     onChange={(e) => setField(t.id, 'name', e.target.value)}
                     readOnly={!t._editing}
                     placeholder="Client name"
-                    className={`w-full text-lg font-semibold px-1 py-1 border-b ${
-                      t._editing ? 'bg-white' : 'bg-transparent'
-                    }`}
+                    className={`w-full text-lg font-semibold px-1 py-1 border-b ${t._editing ? 'bg-white' : 'bg-transparent'}`}
                   />
                   {errors[t.id]?.name && (
                     <div className="text-xs text-red-600 mt-1">
@@ -563,8 +454,13 @@ export default function TestimonialsManager() {
                     className="mt-1 w-full text-sm text-slate-500 px-1 py-1 border-b bg-transparent"
                   />
                 </div>
-
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPendingDelete(t.id)}
+                    className="rounded bg-red-50 px-3 py-1 text-sm text-red-700"
+                  >
+                    Delete
+                  </button>
                   {!t._editing ? (
                     <button
                       onClick={() => setEditing(t.id, true)}
@@ -583,19 +479,21 @@ export default function TestimonialsManager() {
                       <button
                         onClick={() => {
                           const saved = savedRef.current.find(
-                            (s) => s.id === t.id
+                            (s) => s.id === t.id,
                           )
                           if (saved)
                             setItems((arr) =>
                               arr.map((it) =>
-                                it.id === t.id ? clone(saved) : it
-                              )
+                                it.id === t.id ? clone(saved) : it,
+                              ),
                             )
                           else
                             setItems((arr) =>
                               arr.map((it) =>
-                                it.id === t.id ? { ...it, _editing: false } : it
-                              )
+                                it.id === t.id
+                                  ? { ...it, _editing: false }
+                                  : it,
+                              ),
                             )
                           pushToast('info', 'Reverted', 'Edits reverted.')
                         }}
@@ -605,58 +503,34 @@ export default function TestimonialsManager() {
                       </button>
                     </>
                   )}
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <button
-                        onClick={() => setPendingDelete(t.id)}
-                        className="rounded bg-red-50 px-3 py-1 text-sm text-red-700"
-                      >
-                        Delete
-                      </button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete testimonial</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this testimonial? This
-                          action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel
-                          onClick={() => setPendingDelete(null)}
-                        >
-                          Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => doDelete(t.id)}
-                          className="bg-red-600 text-white"
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
               </div>
-
               <textarea
                 value={t.text}
                 onChange={(e) => setField(t.id, 'text', e.target.value)}
                 readOnly={!t._editing}
                 rows={3}
                 placeholder="Testimonial text"
-                className={`w-full rounded border p-2 ${
-                  t._editing ? '' : 'bg-gray-50'
-                }`}
+                className={`w-full rounded border p-2 ${t._editing ? '' : 'bg-gray-50'}`}
               />
               {errors[t.id]?.text && (
                 <div className="text-xs text-red-600 -mt-2">
                   {errors[t.id].text}
                 </div>
               )}
-
+              <input
+                value={t.highlight}
+                onChange={(e) => setField(t.id, 'highlight', e.target.value)}
+                readOnly={!t._editing}
+                placeholder="Highlight"
+                className={`w-full rounded border p-2 mt-2 ${t._editing ? '' : 'bg-gray-50'}`}
+                maxLength={120}
+              />
+              {errors[t.id]?.highlight && (
+                <div className="text-xs text-red-600 -mt-2">
+                  {errors[t.id].highlight}
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <div className="flex items-center gap-2">
                   <div className="text-xs text-slate-500 w-28">
@@ -668,7 +542,7 @@ export default function TestimonialsManager() {
                       setStat(
                         t.id,
                         'editing_time',
-                        e.target.value.replace(/[^\d.]/g, '')
+                        e.target.value.replace(/[^\d.]/g, ''),
                       )
                     }
                     readOnly={!t._editing}
@@ -681,7 +555,6 @@ export default function TestimonialsManager() {
                     </div>
                   )}
                 </div>
-
                 <div className="flex items-center gap-2">
                   <div className="text-xs text-slate-500 w-28">Cost</div>
                   <div className="flex items-center">
@@ -692,7 +565,7 @@ export default function TestimonialsManager() {
                         setStat(
                           t.id,
                           'cost',
-                          e.target.value.replace(/[^\d.]/g, '')
+                          e.target.value.replace(/[^\d.]/g, ''),
                         )
                       }
                       readOnly={!t._editing}
@@ -706,7 +579,6 @@ export default function TestimonialsManager() {
                     )}
                   </div>
                 </div>
-
                 <div className="flex items-center gap-2">
                   <div className="text-xs text-slate-500 w-28">
                     Videos delivered
@@ -727,13 +599,33 @@ export default function TestimonialsManager() {
                 </div>
               </div>
             </div>
-
-            {/* Right side image section removed; image is managed in the preview card above */}
           </div>
         ))}
       </div>
-
-      {pendingDelete && null}
+      {/* Delete confirmation dialog */}
+      {pendingDelete && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded shadow-lg p-6">
+            <div className="mb-4">
+              Are you sure you want to delete this testimonial?
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPendingDelete(null)}
+                className="rounded border px-3 py-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => doDelete(pendingDelete)}
+                className="rounded bg-red-600 text-white px-3 py-1"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
