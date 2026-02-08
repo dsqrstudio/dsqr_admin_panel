@@ -36,6 +36,26 @@ export default function TeamPhotosManager() {
     fetchItems()
   }, [])
 
+  // Handler for drag-and-drop reordering
+  const handleOrderChange = async (newOrder) => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reorder/media-items`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ order: newOrder }),
+        }
+      );
+      if (res.ok) {
+        fetchItems();
+      }
+    } catch (err) {
+      // Optionally show error toast
+    }
+  }
+
   // Refresh handler
   const handleRefresh = () => {
     fetchItems()
@@ -72,11 +92,12 @@ export default function TeamPhotosManager() {
         <DragDropUploadManager
           mode="image"
           category={API_CATEGORY}
-          subsection="default"
           items={items}
-          onChange={handleSave}
+          onUploadSuccess={fetchItems}
+          onDeleteSuccess={fetchItems}
+          onChange={handleOrderChange}
         />
       )}
     </div>
-  )
+  );
 }

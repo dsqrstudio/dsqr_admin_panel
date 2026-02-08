@@ -65,6 +65,7 @@ export default function AffiliateExtraGraphicSection({
             type: 'image',
             category: 'extras',
             subsection,
+            originalName: file.name,
           }),
         },
       )
@@ -101,6 +102,7 @@ export default function AffiliateExtraGraphicSection({
                 category: 'extras',
                 subsection,
                 type: 'image',
+                originalName: file.name,
               }),
             },
           )

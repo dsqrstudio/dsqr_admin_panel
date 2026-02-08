@@ -49,6 +49,29 @@ export default function GraphicsManager({ activeSub }) {
     },
   })
 
+  // Handler for drag-and-drop reordering
+  const handleOrderChange = async (newOrder) => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reorder/media-items`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ order: newOrder }),
+        }
+      )
+      if (res.ok) {
+        showToast('Order updated!', 'success')
+        refetch()
+      } else {
+        showToast('Failed to update order', 'error')
+      }
+    } catch (err) {
+      showToast('Error updating order', 'error')
+    }
+  }
+
   // Wait for backend to update before refetching
   const wait = (ms) => new Promise((res) => setTimeout(res, ms))
 
@@ -201,6 +224,7 @@ export default function GraphicsManager({ activeSub }) {
             items={primaryItems}
             onUploadSuccess={handleSavePrimary}
             onDeleteSuccess={handleSavePrimary}
+            onChange={handleOrderChange}
             renderItemExtra={
               selectMode
                 ? (item) => (
@@ -236,6 +260,7 @@ export default function GraphicsManager({ activeSub }) {
             items={serviceItems}
             onUploadSuccess={handleSaveService}
             onDeleteSuccess={handleSaveService}
+            onChange={handleOrderChange}
             renderItemExtra={
               selectMode
                 ? (item) => (

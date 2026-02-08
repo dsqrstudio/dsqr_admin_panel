@@ -35,6 +35,29 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
       setTimeout(() => setRefreshing(false), 800)
     }
   }
+
+  // Handler for drag-and-drop reordering
+  const handleOrderChange = async (newOrder) => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reorder/media-items`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ order: newOrder }),
+        }
+      );
+      if (res.ok) {
+        showToast('Order updated!', 'success');
+        fetchLogos();
+      } else {
+        showToast('Failed to update order', 'error');
+      }
+    } catch (err) {
+      showToast('Error updating order', 'error');
+    }
+  }
   useEffect(() => {
     fetchLogos()
   }, [showToast])
@@ -81,29 +104,29 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
       {ToastComponent}
       <div className="rounded-2xl bg-linear-to-br from-white to-slate-50/70 p-6 shadow-sm flex items-center mb-4">
         <h2 className="text-3xl font-bold text-slate-900 mb-2 mr-4">{title}</h2>
-        <button
-          onClick={fetchLogos}
-          className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition-colors duration-150 shadow-sm"
-          title="Refresh data"
-          disabled={refreshing}
-        >
-          {refreshing ? 'Refreshing...' : '⟳ Refresh'}
-        </button>
-        {/*
-        <button
-          className="ml-4 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors duration-150 shadow-sm"
-          onClick={() => setSelectMode((m) => !m)}
-        >
-          {selectMode ? 'Cancel Multi-Select' : 'Select Multiple'}
-        </button>
-        */}
-        {selectMode && (
-          <div className="ml-8 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isAllSelected}
-              onChange={handleSelectAll}
+        return (
+          <div className="max-w-4xl mx-auto">
+            {ToastComponent}
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
+              <button
+                onClick={fetchLogos}
+                className="px-4 py-2 rounded-lg bg-[#cff000] text-black font-medium text-sm shadow hover:bg-[#b8dc00] transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+            <DragDropUploadManager
+              mode="image"
+              category={CLIENT_LOGOS_CATEGORY}
+              items={items}
+              onUploadSuccess={fetchLogos}
+              onDeleteSuccess={fetchLogos}
+              onChange={handleOrderChange}
             />
+          </div>
+        {(
+          <>
             <span>Select All</span>
             <button
               className="ml-2 px-2 py-1 rounded bg-red-500 text-white text-xs"
@@ -112,7 +135,7 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
             >
               Delete
             </button>
-          </div>
+          </>
         )}
       </div>
       <p className="text-sm text-slate-600">
