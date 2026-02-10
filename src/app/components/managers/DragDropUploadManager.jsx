@@ -44,6 +44,7 @@ export default function DragDropUploadManager({
   renderItemExtra, // function (item, index) => ReactNode
 }) {
   console.log('[DragDropUploadManager] items:', items)
+  const toSafeUrl = useCallback((url) => (url ? encodeURI(url) : url), [])
   const [draggedIndex, setDraggedIndex] = useState(null)
   const [dragOverIndex, setDragOverIndex] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -555,6 +556,8 @@ export default function DragDropUploadManager({
           const videoSrc = isVideo ? item.hlsUrl || item.src : item.src
           // Always use poster for video thumbnail if available
           const previewSrc = isVideo && item.poster ? item.poster : item.src
+          const safeVideoSrc = toSafeUrl(videoSrc)
+          const safePreviewSrc = toSafeUrl(previewSrc)
           const isDraggedOver = dragOverIndex === index
 
           return (
@@ -612,13 +615,16 @@ export default function DragDropUploadManager({
                       return
                     }
                     setPreviewModal({
-                      src: videoSrc,
+                      src: safeVideoSrc,
                       type: 'video',
-                      poster: previewSrc,
+                      poster: safePreviewSrc,
                     })
                   } else if (previewSrc) {
                     setPreviewModal({
-                      src: previewSrc + '?v=' + (item.updatedAt || Date.now()),
+                      src:
+                        safePreviewSrc +
+                        '?v=' +
+                        (item.updatedAt || Date.now()),
                       type: 'image',
                       poster: item.poster,
                     })
@@ -641,7 +647,9 @@ export default function DragDropUploadManager({
                     <img
                       key={isVideo ? item.poster || '' : item.src || ''}
                       src={
-                        previewSrc + '?v=' + (item.updatedAt || item._id || 0)
+                        safePreviewSrc +
+                        '?v=' +
+                        (item.updatedAt || item._id || 0)
                       }
                       alt=""
                       className="w-full h-full object-cover group-hover/preview:scale-105 transition-transform duration-300"
