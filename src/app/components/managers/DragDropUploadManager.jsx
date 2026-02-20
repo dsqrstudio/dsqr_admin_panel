@@ -622,9 +622,7 @@ export default function DragDropUploadManager({
                   } else if (previewSrc) {
                     setPreviewModal({
                       src:
-                        safePreviewSrc +
-                        '?v=' +
-                        (item.updatedAt || Date.now()),
+                        safePreviewSrc + '?v=' + (item.updatedAt || Date.now()),
                       type: 'image',
                       poster: item.poster,
                     })
