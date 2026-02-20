@@ -303,15 +303,24 @@ export default function OurWorkManager({ activeSub }) {
             credentials: 'include',
           },
         )
-        const data = await res.json()
-        console.log('[FRONTEND UPLOAD BEFORE RESPONSE]', data)
-        if (data.success) {
-          showToast('Before video uploaded!', 'success')
-          fetchVideos()
+        let data = null
+        try {
+          data = await res.json()
+        } catch (e) {
+          showToast('Upload failed: Invalid server response', 'error')
         }
+        console.log('[FRONTEND UPLOAD BEFORE RESPONSE]', data)
+        if (data && data.success) {
+          showToast('Before video uploaded!', 'success')
+        } else {
+          showToast((data && data.message) || 'Before video upload failed', 'error')
+        }
+      } catch (err) {
+        showToast('Before video upload failed (network/server error)', 'error')
       } finally {
         setUploadingId(null)
         setUploadingType(null)
+        fetchVideos()
       }
     }
 
@@ -334,15 +343,24 @@ export default function OurWorkManager({ activeSub }) {
             credentials: 'include',
           },
         )
-        const data = await res.json()
-        console.log('[FRONTEND UPLOAD AFTER RESPONSE]', data)
-        if (data.success) {
-          showToast('After video uploaded!', 'success')
-          fetchVideos()
+        let data = null
+        try {
+          data = await res.json()
+        } catch (e) {
+          showToast('Upload failed: Invalid server response', 'error')
         }
+        console.log('[FRONTEND UPLOAD AFTER RESPONSE]', data)
+        if (data && data.success) {
+          showToast('After video uploaded!', 'success')
+        } else {
+          showToast((data && data.message) || 'After video upload failed', 'error')
+        }
+      } catch (err) {
+        showToast('After video upload failed (network/server error)', 'error')
       } finally {
         setUploadingId(null)
         setUploadingType(null)
+        fetchVideos()
       }
     }
 
