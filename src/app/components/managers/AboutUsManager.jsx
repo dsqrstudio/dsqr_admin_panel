@@ -281,6 +281,31 @@ export default function AboutUsManager() {
                       poster={pair.after.poster}
                       style={{ width: '100%', borderRadius: 8, maxHeight: 220 }}
                     />
+                  ) : pair.before && !pair.after ? (
+                    <div className="w-full flex flex-col items-center">
+                      <label className="block font-medium text-slate-700 mb-1">
+                        Upload After Video
+                      </label>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        disabled={
+                          uploadingId === pair.before._id &&
+                          uploadingType === 'after'
+                        }
+                        className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#cff000] file:text-slate-900 hover:file:bg-lime-200"
+                        onChange={(e) =>
+                          e.target.files &&
+                          handleAfterUpload(e.target.files[0], pair.before._id)
+                        }
+                      />
+                      {uploadingId === pair.before._id &&
+                      uploadingType === 'after' ? (
+                        <span className="ml-4 text-blue-600 font-medium">
+                          Uploading...
+                        </span>
+                      ) : null}
+                    </div>
                   ) : (
                     <div className="text-xs text-slate-400 mt-2">
                       No after video

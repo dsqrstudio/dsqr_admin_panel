@@ -38,7 +38,7 @@ export default function GraphicsManager({ activeSub }) {
         `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`,
         {
           credentials: 'include',
-        }
+        },
       )
       const data = await res.json()
       console.log('[GraphicsManager] Fetched data:', data)
@@ -59,7 +59,7 @@ export default function GraphicsManager({ activeSub }) {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ order: newOrder }),
-        }
+        },
       )
       if (res.ok) {
         showToast('Order updated!', 'success')
@@ -116,7 +116,7 @@ export default function GraphicsManager({ activeSub }) {
   }
   const handleSelect = (id) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
   }
   const handleDeleteSelected = async () => {
@@ -135,9 +135,9 @@ export default function GraphicsManager({ activeSub }) {
             {
               method: 'DELETE',
               credentials: 'include',
-            }
+            },
           )
-        })
+        }),
       )
       showToast('Deleted selected items', 'success')
     } catch (err) {
