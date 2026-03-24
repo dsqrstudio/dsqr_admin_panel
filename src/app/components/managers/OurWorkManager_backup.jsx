@@ -106,7 +106,7 @@ export default function OurWorkManager({ activeSub }) {
       const API_BASE_URL =
         process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/category/our_work`,
+        `${API_BASE_URL}/api/admin/media-items/category/our_work?_t=\${Date.now()}`,
         {
           credentials: 'include',
         }
@@ -353,7 +353,7 @@ export default function OurWorkManager({ activeSub }) {
         process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
       const mediaCategory = 'our_work'
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/bulk/${mediaCategory}`,
+        `${API_BASE_URL}/api/admin/media-items/bulk/${mediaCategory}?_t=\${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

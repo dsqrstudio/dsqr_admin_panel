@@ -17,7 +17,7 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
     setRefreshing(true)
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/category/${CLIENT_LOGOS_CATEGORY}`,
+        `${API_BASE_URL}/api/admin/media-items/category/${CLIENT_LOGOS_CATEGORY}?_t=\${Date.now()}`,
         {
           credentials: 'include',
         },
@@ -38,7 +38,7 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
   const handleOrderChange = async (newOrder) => {
     try {
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/reorder/media-items`,
+        `${API_BASE_URL}/api/admin/reorder/media-items?_t=\${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -79,7 +79,7 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
       await Promise.all(
         selectedIds.map(async (id) => {
           await fetch(
-            `${API_BASE_URL}/api/admin/media-items/${id}`,
+            `${API_BASE_URL}/api/admin/media-items/${id}?_t=\${Date.now()}`,
             {
               method: 'DELETE',
               credentials: 'include',

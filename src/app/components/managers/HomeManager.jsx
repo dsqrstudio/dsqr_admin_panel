@@ -349,7 +349,7 @@ function ServicesOfferedSection() {
     setLoading(true)
     setRefreshing(true)
     fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/services_offered?subsection=home-service-offered`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/services_offered?subsection=home-service-offered&_t=\${Date.now()}`,
       {
         credentials: 'include',
       }

@@ -29,7 +29,7 @@ export default function AffiliateExtraGraphicSection({
     setLoading(true)
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/extras?subsection=${subsection}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/extras?subsection=${subsection}&_t=\${Date.now()}`,
         { credentials: 'include' },
       )
       const data = await res.json()
@@ -56,7 +56,7 @@ export default function AffiliateExtraGraphicSection({
     try {
       // 1. Request upload URL/config from backend
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/generate-upload-url`,
+        `${API_BASE_URL}/api/admin/media-items/generate-upload-url?_t=\${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -92,7 +92,7 @@ export default function AffiliateExtraGraphicSection({
         if (xhr.status >= 200 && xhr.status < 300) {
           // 3. Save metadata to backend
           const metaRes = await fetch(
-            `${API_BASE_URL}/api/admin/media-items/save-metadata`,
+            `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=\${Date.now()}`,
             {
               method: 'POST',
               credentials: 'include',
@@ -146,7 +146,7 @@ export default function AffiliateExtraGraphicSection({
     setReplacing(true)
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${image._id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${image._id}?_t=\${Date.now()}`,
         {
           method: 'DELETE',
           credentials: 'include',

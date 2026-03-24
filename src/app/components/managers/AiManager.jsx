@@ -29,7 +29,7 @@ export default function AiManager({ activeSub }) {
   const fetchItems = () => {
     setLoading(true)
     fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}?_t=\${Date.now()}`,
       {
         credentials: 'include',
       }
@@ -98,7 +98,7 @@ export default function AiManager({ activeSub }) {
       await Promise.all(
         selectedIds.map(async (id) => {
           await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}?_t=\${Date.now()}`,
             {
               method: 'DELETE',
               credentials: 'include',

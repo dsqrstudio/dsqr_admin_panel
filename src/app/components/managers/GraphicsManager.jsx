@@ -35,7 +35,7 @@ export default function GraphicsManager({ activeSub }) {
     queryKey: ['graphics-items'],
     queryFn: async () => {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}?_t=\${Date.now()}`,
         {
           credentials: 'include',
         },
@@ -53,7 +53,7 @@ export default function GraphicsManager({ activeSub }) {
   const handleOrderChange = async (newOrder) => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reorder/media-items`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reorder/media-items?_t=\${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -131,7 +131,7 @@ export default function GraphicsManager({ activeSub }) {
       await Promise.all(
         selectedIds.map(async (id) => {
           await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}?_t=\${Date.now()}`,
             {
               method: 'DELETE',
               credentials: 'include',

@@ -14,7 +14,7 @@ export default function TeamPhotosManager() {
   const fetchItems = () => {
     setLoading(true)
     fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}?_t=\${Date.now()}`,
       {
         credentials: 'include',
       }
@@ -40,7 +40,7 @@ export default function TeamPhotosManager() {
   const handleOrderChange = async (newOrder) => {
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reorder/media-items`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reorder/media-items?_t=\${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

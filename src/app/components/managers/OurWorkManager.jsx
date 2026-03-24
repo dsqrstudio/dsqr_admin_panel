@@ -78,7 +78,7 @@ export default function OurWorkManager({ activeSub }) {
             process.env.NEXT_PUBLIC_API_URL
           }/api/admin/media-items/category/${getCategory()}?subsection=${encodeURIComponent(
             selectedSubsection,
-          )}`,
+          )}&_t=\${Date.now()}`,
         )
         const data = await res.json()
         setItems(data?.data || [])
@@ -102,7 +102,7 @@ export default function OurWorkManager({ activeSub }) {
         process.env.NEXT_PUBLIC_API_URL
       }/api/admin/media-items/category/${getCategory()}?subsection=${encodeURIComponent(
         selectedSubsection,
-      )}`,
+      )}&_t=\${Date.now()}`,
     )
       .then((res) => res.json())
       .then((data) => {
@@ -141,7 +141,7 @@ export default function OurWorkManager({ activeSub }) {
     try {
       for (const id of selectedIds) {
         await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}?_t=\${Date.now()}`,
           {
             method: 'DELETE',
             credentials: 'include',
@@ -186,7 +186,7 @@ export default function OurWorkManager({ activeSub }) {
           // Delete before
           if (beforeId) {
             const res = await fetch(
-              `${API_BASE_URL}/api/admin/media-items/${beforeId}`,
+              `${API_BASE_URL}/api/admin/media-items/${beforeId}?_t=\${Date.now()}`,
               {
                 method: 'DELETE',
                 credentials: 'include',
@@ -197,7 +197,7 @@ export default function OurWorkManager({ activeSub }) {
           // Delete after
           if (afterId) {
             const res2 = await fetch(
-              `${API_BASE_URL}/api/admin/media-items/${afterId}`,
+              `${API_BASE_URL}/api/admin/media-items/${afterId}?_t=\${Date.now()}`,
               {
                 method: 'DELETE',
                 credentials: 'include',
@@ -212,7 +212,7 @@ export default function OurWorkManager({ activeSub }) {
       } else if (deleteTarget.type === 'after') {
         try {
           const res = await fetch(
-            `${API_BASE_URL}/api/admin/media-items/${deleteTarget.id}`,
+            `${API_BASE_URL}/api/admin/media-items/${deleteTarget.id}?_t=\${Date.now()}`,
             {
               method: 'PATCH',
               credentials: 'include',
@@ -240,9 +240,9 @@ export default function OurWorkManager({ activeSub }) {
       setReplaceType(type)
       const formData = new FormData()
       formData.append('file', file)
-      let endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace`
+      let endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace?_t=\${Date.now()}`
       if (type === 'after') {
-        endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace-after`
+        endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace-after?_t=\${Date.now()}`
       }
       try {
         const res = await fetch(endpoint, {
@@ -271,7 +271,7 @@ export default function OurWorkManager({ activeSub }) {
       setLoading(true)
       try {
         const res = await fetch(
-          `${API_BASE_URL}/api/admin/media-items/category/test?subsection=Before/After Video`,
+          `${API_BASE_URL}/api/admin/media-items/category/test?subsection=Before/After Video&_t=\${Date.now()}`,
           { credentials: 'include' },
         )
         const data = await res.json()
@@ -310,7 +310,7 @@ export default function OurWorkManager({ activeSub }) {
       formData.append('subsection', 'Before/After Video')
       try {
         const res = await fetch(
-          `${API_BASE_URL}/api/admin/media-items/upload`,
+          `${API_BASE_URL}/api/admin/media-items/upload?_t=\${Date.now()}`,
           {
             method: 'POST',
             body: formData,
@@ -353,7 +353,7 @@ export default function OurWorkManager({ activeSub }) {
       formData.append('beforeId', beforeId)
       try {
         const res = await fetch(
-          `${API_BASE_URL}/api/admin/media-items/upload`,
+          `${API_BASE_URL}/api/admin/media-items/upload?_t=\${Date.now()}`,
           {
             method: 'POST',
             body: formData,

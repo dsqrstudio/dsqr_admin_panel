@@ -42,6 +42,9 @@ export default function DragDropUploadManager({
   maxItems = Infinity,
   primaryColor = '#cff000',
   renderItemExtra, // function (item, index) => ReactNode
+  modelDbName = 'media-items',
+  onUploadSuccess,
+  onDeleteSuccess,
 }) {
   console.log('[DragDropUploadManager] items:', items)
   const toSafeUrl = useCallback((url) => (url ? encodeURI(url) : url), [])
@@ -90,7 +93,7 @@ export default function DragDropUploadManager({
     try {
       // 1. Request upload URL from backend (pass type)
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/generate-upload-url`,
+        `${API_BASE_URL}/api/admin/media-items/generate-upload-url?_t=\${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -112,7 +115,7 @@ export default function DragDropUploadManager({
         setUploadProgress(10)
         // 1. Create video entry (POST JSON)
         const configRes = await fetch(
-          `${API_BASE_URL}/api/admin/media-items/config`,
+          `${API_BASE_URL}/api/admin/media-items/config?_t=\${Date.now()}`,
           {
             method: 'GET',
             credentials: 'include',
@@ -171,7 +174,7 @@ export default function DragDropUploadManager({
           if (xhr.status === 201 || xhr.status === 200) {
             // Save metadata with guid (backend will construct HLS and poster URLs)
             const metaRes = await fetch(
-              `${API_BASE_URL}/api/admin/media-items/save-metadata`,
+              `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=\${Date.now()}`,
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -242,7 +245,7 @@ export default function DragDropUploadManager({
           if (xhr.status === 201 || xhr.status === 200) {
             // Save metadata in backend
             const metaRes = await fetch(
-              `${API_BASE_URL}/api/admin/media-items/save-metadata`,
+              `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=\${Date.now()}`,
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -297,7 +300,7 @@ export default function DragDropUploadManager({
     setDragOverIndex(null)
   }
 
-  const handleDrop = (e, dropIndex) => {
+  const handleDrop = async (e, dropIndex) => {
     e.preventDefault()
     if (draggedIndex === null || draggedIndex === dropIndex) {
       setDraggedIndex(null)
@@ -318,6 +321,39 @@ export default function DragDropUploadManager({
     onChange(reorderedItems)
     setDraggedIndex(null)
     setDragOverIndex(null)
+
+    // Make API call to save order in the backend
+    try {
+      const orderIds = reorderedItems.map(item => item._id || item.id).filter(Boolean)
+      console.log('[DragDropUploadManager] Reordering items with IDs:', orderIds)
+      
+      if (orderIds.length > 0) {
+        console.log(`[DragDropUploadManager] Sending POST to ${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=\${Date.now()}`)
+        const res = await fetch(`${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=\${Date.now()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ order: orderIds }),
+        })
+        const data = await res.json()
+        console.log('[DragDropUploadManager] Reorder API response:', data)
+        
+        if (data.success) {
+          showToast('Reorder successful!', 'success')
+          if (typeof onUploadSuccess === 'function') {
+            setTimeout(() => onUploadSuccess(), 500)
+          }
+        } else {
+          showToast(`Reorder failed: ${data.message || 'Unknown error'}`, 'error')
+        }
+      } else {
+        console.warn('[DragDropUploadManager] No valid IDs found to reorder!')
+        showToast('Error: No valid item IDs to reorder', 'error')
+      }
+    } catch (err) {
+      console.error('[DragDropUploadManager] Reorder catch error:', err)
+      showToast('Error saving order: Network or server failure', 'error')
+    }
   }
 
   const handleDelete = async (index) => {
@@ -345,7 +381,7 @@ export default function DragDropUploadManager({
           )
         }
         await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}?_t=\${Date.now()}`,
           {
             method: 'DELETE',
             credentials: 'include',
@@ -405,7 +441,7 @@ export default function DragDropUploadManager({
       const xhr = new window.XMLHttpRequest()
       xhr.open(
         'POST',
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}/replace`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}/replace?_t=\${Date.now()}`,
         true,
       )
       xhr.withCredentials = true
