@@ -51,7 +51,7 @@ export default function TestimonialsManager() {
       setLoading(true)
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials?_t=\${Date.now()}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials?_t=${Date.now()}`,
           { credentials: 'include' },
         )
         if (response.ok) {
@@ -94,8 +94,8 @@ export default function TestimonialsManager() {
 
       const isMongoId = /^[a-f\d]{24}$/i.test(id)
       const url = isMongoId
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}/replace-image?_t=\${Date.now()}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/upload?_t=\${Date.now()}`
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}/replace-image?_t=${Date.now()}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/upload?_t=${Date.now()}`
 
       const res = await fetch(url, {
         method: 'POST',
@@ -164,7 +164,7 @@ export default function TestimonialsManager() {
         return
       }
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}?_t=\${Date.now()}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}?_t=${Date.now()}`,
         { method: 'DELETE', credentials: 'include' },
       )
       if (response.ok) {
@@ -284,8 +284,8 @@ export default function TestimonialsManager() {
     try {
       const isNew = !/^[a-f\d]{24}$/i.test(id)
       const url = isNew
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials?_t=\${Date.now()}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}?_t=\${Date.now()}`
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials?_t=${Date.now()}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/testimonials/${id}?_t=${Date.now()}`
       const method = isNew ? 'POST' : 'PUT'
       const response = await fetch(url, {
         method,

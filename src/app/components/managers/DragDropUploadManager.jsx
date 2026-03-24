@@ -93,7 +93,7 @@ export default function DragDropUploadManager({
     try {
       // 1. Request upload URL from backend (pass type)
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/generate-upload-url?_t=\${Date.now()}`,
+        `${API_BASE_URL}/api/admin/media-items/generate-upload-url?_t=${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -115,7 +115,7 @@ export default function DragDropUploadManager({
         setUploadProgress(10)
         // 1. Create video entry (POST JSON)
         const configRes = await fetch(
-          `${API_BASE_URL}/api/admin/media-items/config?_t=\${Date.now()}`,
+          `${API_BASE_URL}/api/admin/media-items/config?_t=${Date.now()}`,
           {
             method: 'GET',
             credentials: 'include',
@@ -174,7 +174,7 @@ export default function DragDropUploadManager({
           if (xhr.status === 201 || xhr.status === 200) {
             // Save metadata with guid (backend will construct HLS and poster URLs)
             const metaRes = await fetch(
-              `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=\${Date.now()}`,
+              `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=${Date.now()}`,
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -245,7 +245,7 @@ export default function DragDropUploadManager({
           if (xhr.status === 201 || xhr.status === 200) {
             // Save metadata in backend
             const metaRes = await fetch(
-              `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=\${Date.now()}`,
+              `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=${Date.now()}`,
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -328,8 +328,8 @@ export default function DragDropUploadManager({
       console.log('[DragDropUploadManager] Reordering items with IDs:', orderIds)
       
       if (orderIds.length > 0) {
-        console.log(`[DragDropUploadManager] Sending POST to ${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=\${Date.now()}`)
-        const res = await fetch(`${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=\${Date.now()}`, {
+        console.log(`[DragDropUploadManager] Sending POST to ${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=${Date.now()}`)
+        const res = await fetch(`${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=${Date.now()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -381,7 +381,7 @@ export default function DragDropUploadManager({
           )
         }
         await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}?_t=\${Date.now()}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}?_t=${Date.now()}`,
           {
             method: 'DELETE',
             credentials: 'include',
@@ -441,7 +441,7 @@ export default function DragDropUploadManager({
       const xhr = new window.XMLHttpRequest()
       xhr.open(
         'POST',
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}/replace?_t=\${Date.now()}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}/replace?_t=${Date.now()}`,
         true,
       )
       xhr.withCredentials = true

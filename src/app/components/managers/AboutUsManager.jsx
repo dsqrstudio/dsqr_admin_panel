@@ -30,14 +30,14 @@ export default function AboutUsManager() {
     if (!deleteTarget?.id) return
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${deleteTarget.id}?_t=\${Date.now()}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${deleteTarget.id}?_t=${Date.now()}`,
         {
           method: 'DELETE',
           credentials: 'include',
         },
       )
       if (res.ok) {
-        showToast('Video pair deleted successfully', 'success')
+        showToast('Video deleted successfully', 'success')
       } else {
         showToast('Failed to delete video pair', 'error')
       }
@@ -53,7 +53,7 @@ export default function AboutUsManager() {
     if (!window.confirm('Remove the after video?')) return
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}?_t=\${Date.now()}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}?_t=${Date.now()}`,
         {
           method: 'PATCH',
           credentials: 'include',
@@ -79,9 +79,9 @@ export default function AboutUsManager() {
     setReplaceType(type)
     const formData = new FormData()
     formData.append('file', file)
-    let endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}/replace?_t=\${Date.now()}`
+    let endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}/replace?_t=${Date.now()}`
     if (type === 'after') {
-      endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}/replace-after?_t=\${Date.now()}`
+      endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}/replace-after?_t=${Date.now()}`
     }
     try {
       const res = await fetch(endpoint, {
@@ -110,7 +110,7 @@ export default function AboutUsManager() {
     setLoading(true)
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/about_us_before_after?subsection=About%20Us%20Before%2FAfter%20Video&_t=\${Date.now()}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/about_us_before_after?subsection=About%20Us%20Before%2FAfter%20Video&_t=${Date.now()}`,
         { credentials: 'include' },
       )
       const data = await res.json()
@@ -146,7 +146,7 @@ export default function AboutUsManager() {
     formData.append('category', 'about_us_before_after')
     formData.append('subsection', 'About Us Before/After Video')
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload?_t=\${Date.now()}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload?_t=${Date.now()}`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -175,7 +175,7 @@ export default function AboutUsManager() {
     formData.append('subsection', 'About Us Before/After Video')
     formData.append('beforeId', beforeId)
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload?_t=\${Date.now()}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload?_t=${Date.now()}`, {
         method: 'POST',
         body: formData,
         credentials: 'include',

@@ -51,7 +51,7 @@ export default function DashboardHome() {
     const fetchStats = async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/admin/dashboard-stats?_t=\${Date.now()}`,
+          `${API_BASE_URL}/api/admin/dashboard-stats?_t=${Date.now()}`,
           {
             credentials: 'include',
           }
@@ -71,7 +71,7 @@ export default function DashboardHome() {
     const fetchOurWorkStats = async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/admin/settings/ourWorkStats?_t=\${Date.now()}`,
+          `${API_BASE_URL}/api/admin/settings/ourWorkStats?_t=${Date.now()}`,
           {
             credentials: 'include',
           }
@@ -92,7 +92,7 @@ export default function DashboardHome() {
     const fetchDiscount = async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/admin/settings/promotionalDiscount?_t=\${Date.now()}`,
+          `${API_BASE_URL}/api/admin/settings/promotionalDiscount?_t=${Date.now()}`,
           {
             credentials: 'include',
           }
@@ -118,7 +118,7 @@ export default function DashboardHome() {
   const handleSaveStats = async () => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/settings/ourWorkStats?_t=\${Date.now()}`,
+        `${API_BASE_URL}/api/admin/settings/ourWorkStats?_t=${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -148,7 +148,7 @@ export default function DashboardHome() {
   const handleSaveDiscount = async () => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/settings/promotionalDiscount?_t=\${Date.now()}`,
+        `${API_BASE_URL}/api/admin/settings/promotionalDiscount?_t=${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -176,7 +176,7 @@ export default function DashboardHome() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/admin/settings/promotionalDiscount?_t=\${Date.now()}`,
+        `${API_BASE_URL}/api/admin/settings/promotionalDiscount?_t=${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

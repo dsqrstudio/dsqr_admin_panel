@@ -27,7 +27,7 @@ async function handleDirectUpload(file, type, onUrl) {
   setUploadProgress(0)
   try {
     // Step 1: Get Bunny config (libraryId, apiKey)
-    const configRes = await fetch(`${API_BASE_URL}/api/admin/media-items/config?_t=\${Date.now()}`, {
+    const configRes = await fetch(`${API_BASE_URL}/api/admin/media-items/config?_t=${Date.now()}`, {
       method: 'GET',
       credentials: 'include',
     })
@@ -76,7 +76,7 @@ async function handleDirectUpload(file, type, onUrl) {
         setUploadProgress(0)
         if (xhr.status === 201 || xhr.status === 200) {
           // Step 4: Save metadata in backend
-          const metaRes = await fetch(`${API_BASE_URL}/api/admin/media-items/save?_t=\${Date.now()}`, {
+          const metaRes = await fetch(`${API_BASE_URL}/api/admin/media-items/save?_t=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -114,7 +114,7 @@ async function handleDirectUpload(file, type, onUrl) {
     } else {
       // Bunny Storage: (unchanged, legacy flow)
       const res = await fetch(
-        `${API_BASE_URL}/api/admin/media-items/generate-upload-url?_t=\${Date.now()}`,
+        `${API_BASE_URL}/api/admin/media-items/generate-upload-url?_t=${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -146,7 +146,7 @@ async function handleDirectUpload(file, type, onUrl) {
         if (xhr.status === 201 || xhr.status === 200) {
           // Save metadata in backend
           const metaRes = await fetch(
-            `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=\${Date.now()}`,
+            `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=${Date.now()}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

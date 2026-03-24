@@ -57,7 +57,7 @@ export default function PricingManager() {
         const API_BASE_URL =
           process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/pricing?_t=\${Date.now()}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/pricing?_t=${Date.now()}`,
           {
             credentials: 'include',
           }
@@ -241,7 +241,7 @@ export default function PricingManager() {
         process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/pricing?_t=\${Date.now()}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/pricing?_t=${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
