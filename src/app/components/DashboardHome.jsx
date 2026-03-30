@@ -10,12 +10,14 @@ import {
   FiCheck,
   FiTag,
 } from 'react-icons/fi'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '@/components/ui/toast'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export default function DashboardHome() {
   const { showToast, ToastComponent } = useToast()
+  const queryClient = useQueryClient()
 
   const [stats, setStats] = useState({
     totalItems: 0,
@@ -45,75 +47,56 @@ export default function DashboardHome() {
   const [editingDiscount, setEditingDiscount] = useState(false)
   const [tempDiscount, setTempDiscount] = useState(discount)
 
-  const [loading, setLoading] = useState(true)
+  // --- REACT QUERY FETCHING ---
+  
+  // 1. Fetch General Stats
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/admin/dashboard-stats?_t=${Date.now()}`, { credentials: 'include' })
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
+  })
 
+  // 2. Fetch Our Work Metrics
+  const { data: ourWorkData } = useQuery({
+    queryKey: ['admin-our-work-stats'],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings/ourWorkStats?_t=${Date.now()}`, { credentials: 'include' })
+      const json = await res.json()
+      return json.success ? json.data : null
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // 3. Fetch Discount Info
+  const { data: discountData } = useQuery({
+    queryKey: ['admin-discount'],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/admin/settings/promotionalDiscount?_t=${Date.now()}`, { credentials: 'include' })
+      const json = await res.json()
+      return json.success ? json.data : null
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Sync React Query data to your existing local states
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/admin/dashboard-stats?_t=${Date.now()}`,
-          {
-            credentials: 'include',
-          }
-        )
-
-        if (response.ok) {
-          const data = await response.json()
-          setStats(data)
-        }
-      } catch (error) {
-        console.error('Failed to load dashboard stats:', error)
-      } finally {
-        setLoading(false)
-      }
+    if (statsData)
+      console.log("DASHBOARD STATS DEBUG:", statsData);
+     setStats(statsData)
+    if (ourWorkData) {
+      setOurWorkStats(ourWorkData)
+      setTempStats(ourWorkData)
     }
-
-    const fetchOurWorkStats = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/admin/settings/ourWorkStats?_t=${Date.now()}`,
-          {
-            credentials: 'include',
-          }
-        )
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.data) {
-            setOurWorkStats(data.data)
-            setTempStats(data.data)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load our work stats:', error)
-      }
+    if (discountData) {
+      setDiscount(discountData)
+      setTempDiscount(discountData)
     }
+  }, [statsData, ourWorkData, discountData])
 
-    const fetchDiscount = async () => {
-      try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/admin/settings/promotionalDiscount?_t=${Date.now()}`,
-          {
-            credentials: 'include',
-          }
-        )
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.data) {
-            setDiscount(data.data)
-            setTempDiscount(data.data)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load promotional discount:', error)
-      }
-    }
-
-    fetchStats()
-    fetchOurWorkStats()
-    fetchDiscount()
-  }, [])
+  const loading = statsLoading // Sync loading state with main stats
 
   const handleSaveStats = async () => {
     try {
@@ -128,7 +111,7 @@ export default function DashboardHome() {
       )
 
       if (response.ok) {
-        setOurWorkStats(tempStats)
+        queryClient.invalidateQueries({ queryKey: ['admin-our-work-stats'] })
         setEditingStats(false)
         showToast('Our Work stats saved successfully!', 'success')
       } else {
@@ -158,7 +141,7 @@ export default function DashboardHome() {
       )
 
       if (response.ok) {
-        setDiscount(tempDiscount)
+        queryClient.invalidateQueries({ queryKey: ['admin-discount'] })
         setEditingDiscount(false)
         showToast('Promotional discount saved successfully!', 'success')
       } else {
@@ -186,7 +169,7 @@ export default function DashboardHome() {
       )
 
       if (response.ok) {
-        setDiscount(updatedDiscount)
+        queryClient.invalidateQueries({ queryKey: ['admin-discount'] })
         showToast(
           `Promotional discount ${newEnabledState ? 'enabled' : 'disabled'}`,
           'success'
@@ -241,7 +224,6 @@ export default function DashboardHome() {
                   records are also removed and everything stays in sync.
                 </span>
               </li>
-              {/* Add more tips here in the future */}
             </ul>
           </div>
         </div>
@@ -306,58 +288,6 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Promotional Discount */}
-      {/* <div className="bg-gradient-to-r from-slate-50 to-gray-100 rounded-xl shadow-sm border border-slate-200 p-4 sm:p-6 hover:shadow-md transition-shadow duration-300 mb-6 sm:mb-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="p-2 sm:p-2.5 rounded-lg bg-slate-200">
-              <FiTag className="h-5 w-5 sm:h-6 sm:w-6 text-slate-700" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-                Promotional Discount
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
-                Special offers and deals
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <span className="text-xs sm:text-sm font-medium text-slate-700">
-                Enable
-              </span>
-              <input
-                type="checkbox"
-                checked={discount.enabled}
-                onChange={handleToggleDiscount}
-                className="w-5 h-5 rounded border-slate-300 text-[#cff000] focus:ring-[#cff000]"
-              />
-            </label>
-            <button
-              onClick={() => setEditingDiscount(true)}
-              className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 bg-[#cff000] rounded-lg font-medium text-sm hover:bg-[#b8dc00] transition-colors duration-200"
-            >
-              <FiEdit2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Edit</span>
-            </button>
-          </div>
-        </div>
-
-        {discount.enabled && (
-          <div className="bg-white rounded-lg p-4 sm:p-6 border border-slate-300 shadow-sm">
-            <div className="text-center">
-              <div className="text-3xl sm:text-4xl font-bold text-slate-700 mb-2">
-                {discount.percentage}% OFF
-              </div>
-              <div className="text-sm sm:text-base text-slate-600 font-semibold">
-                {discount.name}
-              </div>
-            </div>
-          </div>
-        )}
-      </div> */}
-
       {/* Media Counters */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-3 sm:p-4 hover:shadow-md transition-all">
@@ -371,7 +301,7 @@ export default function DashboardHome() {
               Total Items
             </p>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-              {loading ? '...' : stats.totalItems}
+              {loading ? '...' : stats?.totalItems}
             </p>
           </div>
         </div>
@@ -387,7 +317,7 @@ export default function DashboardHome() {
               Total Videos
             </p>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-              {loading ? '...' : stats.totalVideos}
+              {loading ? '...' : stats?.totalVideos}
             </p>
           </div>
         </div>
@@ -403,7 +333,7 @@ export default function DashboardHome() {
               Total Images
             </p>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-              {loading ? '...' : stats.totalImages}
+              {loading ? '...' : stats?.totalImages}
             </p>
           </div>
         </div>
@@ -419,7 +349,7 @@ export default function DashboardHome() {
               Before/After
             </p>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-              {loading ? '...' : stats.beforeAfterVideos}
+              {loading ? '...' : stats?.beforeAfterVideos}
             </p>
           </div>
         </div>
@@ -435,7 +365,7 @@ export default function DashboardHome() {
               Portfolio
             </p>
             <p className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-              {loading ? '...' : stats.portfolioVideos}
+              {loading ? '...' : stats?.portfolioVideos}
             </p>
           </div>
         </div>
@@ -459,7 +389,7 @@ export default function DashboardHome() {
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#cff000] mx-auto mb-3" />
             <p className="text-slate-500 text-sm">Loading...</p>
           </div>
-        ) : stats.recentUploads && stats.recentUploads.length > 0 ? (
+        ) : stats?.recentUploads && stats?.recentUploads.length > 0 ? (
           <div className="space-y-2 sm:space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
             {stats.recentUploads.slice(0, 10).map((upload, index) => (
               <div

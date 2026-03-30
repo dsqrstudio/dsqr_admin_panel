@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import DragDropUploadManager from './DragDropUploadManager'
 import { useToast } from '@/components/ui/toast'
 
@@ -7,59 +8,39 @@ const CLIENT_LOGOS_CATEGORY = 'client_logos'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export default function ClientLogosManager({ title = 'Client Logos' }) {
+  const queryClient = useQueryClient()
   const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
   const { showToast, ToastComponent } = useToast()
-  const [refreshing, setRefreshing] = useState(false)
 
-  const fetchLogos = async () => {
-    setLoading(true)
-    setRefreshing(true)
-    try {
+  // --- React Query Fetch ---
+  const { data: serverData, isLoading, isFetching } = useQuery({
+    queryKey: ['admin-media-items', CLIENT_LOGOS_CATEGORY],
+    queryFn: async () => {
       const response = await fetch(
         `${API_BASE_URL}/api/admin/media-items/category/${CLIENT_LOGOS_CATEGORY}?_t=${Date.now()}`,
-        {
-          credentials: 'include',
-        },
+        { credentials: 'include' },
       )
-      if (response.ok) {
-        const data = await response.json()
-        setItems(data.data || [])
-      }
-    } catch (error) {
-      console.error('Failed to load client logos:', error)
-      showToast('Failed to load client logos', 'error')
-    } finally {
-      setLoading(false)
-      setTimeout(() => setRefreshing(false), 800)
-    }
-  }
+      if (!response.ok) throw new Error('Fetch failed')
+      const data = await response.json()
+      if (data?.success && Array.isArray(data.data)) return data.data
+      return []
+    },
+    onError: () => showToast('Failed to load client logos', 'error'),
+  })
 
-  const handleOrderChange = async (newOrder) => {
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/admin/reorder/media-items?_t=${Date.now()}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ order: newOrder }),
-        },
-      )
-      if (res.ok) {
-        showToast('Order updated!', 'success')
-        fetchLogos()
-      } else {
-        showToast('Failed to update order', 'error')
-      }
-    } catch (err) {
-      showToast('Error updating order', 'error')
-    }
-  }
-
+  // Synchronize server cache neatly into the UI local buckets
   useEffect(() => {
-    fetchLogos()
-  }, []) // Removed showToast from dependency to prevent infinite loops
+    if (serverData) setItems(serverData)
+  }, [serverData])
+
+  const triggerRefresh = () => {
+    queryClient.invalidateQueries(['admin-media-items', CLIENT_LOGOS_CATEGORY])
+  }
+
+  const handleOrderChange = (newItems) => {
+    setItems(newItems)
+    triggerRefresh()
+  }
 
   // Multi-select state
   const [selectMode, setSelectMode] = useState(false)
@@ -78,22 +59,19 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(
-            `${API_BASE_URL}/api/admin/media-items/${id}?_t=${Date.now()}`,
-            {
-              method: 'DELETE',
-              credentials: 'include',
-            },
-          )
+          await fetch(`${API_BASE_URL}/api/admin/media-items/${id}?_t=${Date.now()}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          })
         }),
       )
       showToast('Items deleted successfully', 'success')
+      setSelectedIds([])
+      setSelectMode(false)
+      triggerRefresh()
     } catch (err) {
       showToast('Error deleting items', 'error')
     }
-    setSelectedIds([])
-    setSelectMode(false)
-    fetchLogos()
   }
 
   return (
@@ -130,10 +108,11 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
             </>
           )}
           <button
-            onClick={fetchLogos}
+            onClick={triggerRefresh}
+            disabled={isLoading || isFetching}
             className="ml-auto px-4 py-2 rounded-lg bg-[#cff000] text-black font-medium text-sm shadow hover:bg-[#b8dc00] transition-colors"
           >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            {isLoading || isFetching ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
       </div>
@@ -145,7 +124,7 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
 
       {/* Content Section */}
       <div className="bg-white rounded-lg shadow p-6">
-        {loading && !refreshing ? (
+        {isLoading && items.length === 0 ? (
           <div className="text-center py-8">Loading...</div>
         ) : (
           <DragDropUploadManager
@@ -154,8 +133,8 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
             subsection="logos"
             items={items}
             onChange={handleOrderChange}
-            onUploadSuccess={fetchLogos}
-            onDeleteSuccess={fetchLogos}
+            onUploadSuccess={triggerRefresh}
+            onDeleteSuccess={triggerRefresh}
             allowAdd
             allowEdit
             allowDelete

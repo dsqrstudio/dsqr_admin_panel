@@ -1,84 +1,61 @@
 // admin/components/managers/TeamPhotosManager.jsx
 'use client'
 import React, { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import DragDropUploadManager from './DragDropUploadManager'
+import { useToast } from '@/components/ui/toast'
 
 const API_CATEGORY = 'team_photos'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export default function TeamPhotosManager() {
+  const queryClient = useQueryClient()
   const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { showToast, ToastComponent } = useToast()
 
-  // Fetch items function
-  const fetchItems = () => {
-    setLoading(true)
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}?_t=${Date.now()}`,
-      {
+  // --- React Query Fetch ---
+  const { data: serverData, isLoading, isFetching } = useQuery({
+    queryKey: ['admin-media-items', API_CATEGORY],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/category/${API_CATEGORY}?_t=${Date.now()}`, {
         credentials: 'include',
-      }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.data)) {
-          setItems(data.data)
-        } else {
-          setItems([])
-        }
       })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false))
-  }
+      if (!res.ok) throw new Error('Fetch failed')
+      const data = await res.json()
+      if (data?.success && Array.isArray(data.data)) return data.data
+      return []
+    },
+    onError: () => showToast('Failed to load team photos', 'error'),
+  })
 
-  // Fetch items on mount
+  // Synchronize server cache neatly into the UI local buckets
   useEffect(() => {
-    fetchItems()
-  }, [])
+    if (serverData) setItems(serverData)
+  }, [serverData])
 
-  // Handler for drag-and-drop reordering
-  const handleOrderChange = async (newOrder) => {
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reorder/media-items?_t=${Date.now()}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ order: newOrder }),
-        }
-      );
-      if (res.ok) {
-        fetchItems();
-      }
-    } catch (err) {
-      // Optionally show error toast
-    }
+  const triggerRefresh = () => {
+    queryClient.invalidateQueries(['admin-media-items', API_CATEGORY])
   }
 
-  // Refresh handler
-  const handleRefresh = () => {
-    fetchItems()
-  }
-
-  // Save handler
-  const handleSave = async (newItems) => {
+  const handleOrderChange = (newItems) => {
     setItems(newItems)
+    triggerRefresh()
   }
 
   return (
     <div className="max-w-7xl mx-auto">
+      {ToastComponent}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold text-slate-900">
           Team Photos Manager
         </h2>
         <button
-          onClick={handleRefresh}
+          onClick={triggerRefresh}
           className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition-colors duration-150 shadow-sm"
           title="Refresh data"
-          disabled={loading}
+          disabled={isLoading || isFetching}
         >
-          &#x21bb; Refresh
+          {isLoading || isFetching ? 'Refreshing...' : '⟳ Refresh'}
         </button>
       </div>
 
@@ -86,18 +63,18 @@ export default function TeamPhotosManager() {
         Manage team member photos. Upload, reorder, or delete team photos.
       </div>
 
-      {loading ? (
+      {isLoading && items.length === 0 ? (
         <div className="text-center py-8 text-slate-500">Loading...</div>
       ) : (
         <DragDropUploadManager
           mode="image"
           category={API_CATEGORY}
           items={items}
-          onUploadSuccess={fetchItems}
-          onDeleteSuccess={fetchItems}
+          onUploadSuccess={triggerRefresh}
+          onDeleteSuccess={triggerRefresh}
           onChange={handleOrderChange}
         />
       )}
     </div>
-  );
+  )
 }

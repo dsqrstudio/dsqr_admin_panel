@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import DragDropUploadManager from './DragDropUploadManager'
 import { useToast } from '@/components/ui/toast'
 
@@ -27,83 +28,52 @@ function TabBar({ sections, selected, onSelect }) {
 }
 
 function PrimaryGraphicsSection() {
-  // Primary Images
+  const queryClient = useQueryClient()
+  
+  // Local state arrays for DragDropUploadManager to perform optimistic reordering
   const [primaryItems, setPrimaryItems] = useState([])
-  const [primaryLoading, setPrimaryLoading] = useState(true)
-  // Steps Animation Graphics
   const [stepsItems, setStepsItems] = useState([])
-  const [stepsLoading, setStepsLoading] = useState(true)
-  // Image Gallery
   const [galleryItems, setGalleryItems] = useState([])
-  const [galleryLoading, setGalleryLoading] = useState(true)
-  // Local subcategory tabs within Primary Graphics
-  const PRIMARY_SUBS = [
-    'Primary Images',
-    'Steps Animation Graphics',
-    'Image Gallery',
-  ]
+
+  const PRIMARY_SUBS = ['Primary Images', 'Steps Animation Graphics', 'Image Gallery']
   const [selectedSub, setSelectedSub] = useState(PRIMARY_SUBS[0])
   const { showToast, ToastComponent } = useToast()
 
-  // Fetch function for refresh
-  const fetchAll = () => {
-    setPrimaryLoading(true)
-    setStepsLoading(true)
-    setGalleryLoading(true)
-    // Add cache-busting param to always fetch fresh data
-    fetch(
-      `${
-        process.env.NEXT_PUBLIC_API_URL
-      }/api/admin/media-items/category/home-page?v=${Date.now()}`,
-      {
+  // --- React Query Fetch ---
+  const { data: serverData, isLoading: primaryLoading, isFetching: primaryRefetching } = useQuery({
+    queryKey: ['admin-media-items', 'home-page'],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/category/home-page?v=${Date.now()}`, {
         credentials: 'include',
+      })
+      if (!res.ok) throw new Error('Fetch failed')
+      const result = await res.json()
+      if (result.success && Array.isArray(result.data)) {
+        return result.data
       }
-    )
-      .then((r) => r.json())
-      .then((res) => {
-        console.log('🏠 HomeManager: API Response:', res)
-        if (res.success && Array.isArray(res.data)) {
-          // Filter by subsection
-          const primary = res.data.filter(
-            (item) => item.subsection === 'hero-section'
-          )
-          const steps = res.data.filter((item) => item.subsection === '123')
-          const gallery = res.data.filter(
-            (item) => item.subsection === 'gallery-section'
-          )
+      return []
+    },
+  })
 
-          setPrimaryItems(primary)
-          setStepsItems(steps)
-          setGalleryItems(gallery)
-        }
-      })
-      .catch((err) => console.error('Failed to fetch home-page items:', err))
-      .finally(() => {
-        setPrimaryLoading(false)
-        setStepsLoading(false)
-        setGalleryLoading(false)
-      })
-  }
-
+  // Synchronize perfectly into local bucket states anytime the server fetch succeeds
   useEffect(() => {
-    fetchAll()
-  }, [])
+    if (serverData) {
+      setPrimaryItems(serverData.filter((item) => item.subsection === 'hero-section'))
+      setStepsItems(serverData.filter((item) => item.subsection === '123'))
+      setGalleryItems(serverData.filter((item) => item.subsection === 'gallery-section'))
+    }
+  }, [serverData])
 
-  const saveSection = async (itemsSetter, items) => {
-    // Just update local state - DragDropUploadManager handles API saves
-    itemsSetter(items)
+  // Triggers a true background refresh
+  const triggerRefresh = () => {
+    queryClient.invalidateQueries(['admin-media-items', 'home-page'])
   }
 
   return (
     <div className="space-y-6">
       {ToastComponent}
-      {/* Inner tabs for Primary Graphics */}
       <div className="rounded-2xl bg-linear-to-br from-white to-slate-50/70 p-4 shadow-sm">
-        <TabBar
-          sections={PRIMARY_SUBS}
-          selected={selectedSub}
-          onSelect={setSelectedSub}
-        />
+        <TabBar sections={PRIMARY_SUBS} selected={selectedSub} onSelect={setSelectedSub} />
       </div>
 
       {selectedSub === 'Primary Images' && (
@@ -112,8 +82,8 @@ function PrimaryGraphicsSection() {
             <h3 className="text-lg font-semibold">Primary Images</h3>
             <button
               className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
-              onClick={fetchAll}
-              disabled={primaryLoading}
+              onClick={triggerRefresh}
+              disabled={primaryLoading || primaryRefetching}
               style={{
                 minWidth: 100,
                 width: 120,
@@ -123,20 +93,13 @@ function PrimaryGraphicsSection() {
                 justifyContent: 'center',
               }}
             >
-              <span
-                style={{
-                  width: 80,
-                  textAlign: 'center',
-                  display: 'inline-block',
-                }}
-              >
-                {primaryLoading ? 'Refreshing...' : 'Refresh'}
+              <span style={{ width: 80, textAlign: 'center', display: 'inline-block' }}>
+                {primaryLoading || primaryRefetching ? 'Refreshing...' : 'Refresh'}
               </span>
             </button>
           </div>
           <p className="text-sm text-slate-500 mb-4">
-            Upload key images used in the primary hero/graphics. Drag to
-            reorder.
+            Upload key images used in the primary hero/graphics. Drag to reorder.
           </p>
           {primaryLoading ? (
             <div>Loading...</div>
@@ -145,6 +108,8 @@ function PrimaryGraphicsSection() {
               mode="image"
               items={primaryItems}
               onChange={setPrimaryItems}
+              onUploadSuccess={triggerRefresh}
+              onDeleteSuccess={triggerRefresh}
               category="home-page"
               subsection="hero-section"
               allowAdd
@@ -163,8 +128,8 @@ function PrimaryGraphicsSection() {
             <h3 className="text-lg font-semibold">Steps Animation Graphics</h3>
             <button
               className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
-              onClick={fetchAll}
-              disabled={stepsLoading}
+              onClick={triggerRefresh}
+              disabled={primaryLoading || primaryRefetching}
               style={{
                 minWidth: 100,
                 width: 120,
@@ -174,27 +139,23 @@ function PrimaryGraphicsSection() {
                 justifyContent: 'center',
               }}
             >
-              <span
-                style={{
-                  width: 80,
-                  textAlign: 'center',
-                  display: 'inline-block',
-                }}
-              >
-                {stepsLoading ? 'Refreshing...' : 'Refresh'}
+              <span style={{ width: 80, textAlign: 'center', display: 'inline-block' }}>
+                {primaryLoading || primaryRefetching ? 'Refreshing...' : 'Refresh'}
               </span>
             </button>
           </div>
           <p className="text-sm text-slate-500 mb-4">
             Upload images used for the steps animation section. Drag to reorder.
           </p>
-          {stepsLoading ? (
+          {primaryLoading ? (
             <div>Loading...</div>
           ) : (
             <DragDropUploadManager
               mode="image"
               items={stepsItems}
               onChange={setStepsItems}
+              onUploadSuccess={triggerRefresh}
+              onDeleteSuccess={triggerRefresh}
               category="home-page"
               subsection="123"
               allowAdd
@@ -213,8 +174,8 @@ function PrimaryGraphicsSection() {
             <h3 className="text-lg font-semibold">Image Gallery</h3>
             <button
               className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
-              onClick={fetchAll}
-              disabled={galleryLoading}
+              onClick={triggerRefresh}
+              disabled={primaryLoading || primaryRefetching}
               style={{
                 minWidth: 100,
                 width: 120,
@@ -224,27 +185,23 @@ function PrimaryGraphicsSection() {
                 justifyContent: 'center',
               }}
             >
-              <span
-                style={{
-                  width: 80,
-                  textAlign: 'center',
-                  display: 'inline-block',
-                }}
-              >
-                {galleryLoading ? 'Refreshing...' : 'Refresh'}
+              <span style={{ width: 80, textAlign: 'center', display: 'inline-block' }}>
+                {primaryLoading || primaryRefetching ? 'Refreshing...' : 'Refresh'}
               </span>
             </button>
           </div>
           <p className="text-sm text-slate-500 mb-4">
             Upload images for the homepage gallery. Drag to reorder.
           </p>
-          {galleryLoading ? (
+          {primaryLoading ? (
             <div>Loading...</div>
           ) : (
             <DragDropUploadManager
               mode="image"
               items={galleryItems}
               onChange={setGalleryItems}
+              onUploadSuccess={triggerRefresh}
+              onDeleteSuccess={triggerRefresh}
               category="home-page"
               subsection="gallery-section"
               allowAdd
@@ -261,38 +218,30 @@ function PrimaryGraphicsSection() {
 }
 
 function PortfolioVideoSection() {
+  const queryClient = useQueryClient()
   const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
-  // Fetch videos for home-portfolio
-  const fetchVideos = () => {
-    setLoading(true)
-    // Add cache-busting param to always fetch fresh data
-    fetch(
-      `${
-        process.env.NEXT_PUBLIC_API_URL
-      }/api/admin/media-items/category/home_portfolio_video?subsection=home-portfolio&_=${Date.now()}`,
-      {
-        credentials: 'include',
-      }
-    )
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setItems(res.data)
-        } else {
-          setItems([])
-        }
-      })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false))
-  }
+  const { data: serverData, isLoading: loading, isFetching: refreshing } = useQuery({
+    queryKey: ['admin-media-items', 'home_portfolio_video'],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/media-items/category/home_portfolio_video?subsection=home-portfolio&_=${Date.now()}`,
+        { credentials: 'include' }
+      )
+      if (!res.ok) throw new Error('Fetch failed')
+      const result = await res.json()
+      if (result.success && Array.isArray(result.data)) return result.data
+      return []
+    },
+  })
 
   useEffect(() => {
-    fetchVideos()
-  }, [])
+    if (serverData) setItems(serverData)
+  }, [serverData])
+
+  const triggerRefresh = () => {
+    queryClient.invalidateQueries(['admin-media-items', 'home_portfolio_video'])
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -300,8 +249,8 @@ function PortfolioVideoSection() {
         <h3 className="text-lg font-semibold">Portfolio Video</h3>
         <button
           className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
-          onClick={fetchVideos}
-          disabled={loading}
+          onClick={triggerRefresh}
+          disabled={loading || refreshing}
           style={{
             minWidth: 100,
             width: 120,
@@ -311,16 +260,13 @@ function PortfolioVideoSection() {
             justifyContent: 'center',
           }}
         >
-          <span
-            style={{ width: 80, textAlign: 'center', display: 'inline-block' }}
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
+          <span style={{ width: 80, textAlign: 'center', display: 'inline-block' }}>
+            {loading || refreshing ? 'Refreshing...' : 'Refresh'}
           </span>
         </button>
       </div>
       <p className="text-sm text-slate-500 mb-4">
-        Upload the main homepage video. Only file upload is allowed. Only one
-        video can be set.
+        Upload the main homepage video. Only one video can be set.
       </p>
       <DragDropUploadManager
         mode="video"
@@ -328,7 +274,8 @@ function PortfolioVideoSection() {
         subsection="home-portfolio"
         items={items}
         onChange={setItems}
-        onUploadSuccess={fetchVideos}
+        onUploadSuccess={triggerRefresh}
+        onDeleteSuccess={triggerRefresh}
         maxItems={1}
         endpoint="/api/admin/home-content/portfolio_video"
       />
@@ -338,40 +285,30 @@ function PortfolioVideoSection() {
 }
 
 function ServicesOfferedSection() {
+  const queryClient = useQueryClient()
   const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
-  // Fetch videos for home-service-offered
-  const fetchVideos = () => {
-    setLoading(true)
-    setRefreshing(true)
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/services_offered?subsection=home-service-offered&_t=${Date.now()}`,
-      {
-        credentials: 'include',
-      }
-    )
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setItems(res.data)
-        } else {
-          setItems([])
-        }
-      })
-      .catch(() => setItems([]))
-      .finally(() => {
-        setLoading(false)
-        setTimeout(() => setRefreshing(false), 800)
-      })
-  }
+  const { data: serverData, isLoading: loading, isFetching: refreshing } = useQuery({
+    queryKey: ['admin-media-items', 'home-service-offered'],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/media-items/category/services_offered?subsection=home-service-offered&_t=${Date.now()}`,
+        { credentials: 'include' }
+      )
+      if (!res.ok) throw new Error('Fetch failed')
+      const result = await res.json()
+      if (result.success && Array.isArray(result.data)) return result.data
+      return []
+    },
+  })
 
   useEffect(() => {
-    fetchVideos()
-  }, [])
+    if (serverData) setItems(serverData)
+  }, [serverData])
+
+  const triggerRefresh = () => {
+    queryClient.invalidateQueries(['admin-media-items', 'home-service-offered'])
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -379,8 +316,8 @@ function ServicesOfferedSection() {
         <h3 className="text-lg font-semibold">Services Offered</h3>
         <button
           className="px-3 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold border border-slate-300 transition"
-          onClick={fetchVideos}
-          disabled={loading}
+          onClick={triggerRefresh}
+          disabled={loading || refreshing}
           style={{
             minWidth: 100,
             width: 120,
@@ -390,16 +327,13 @@ function ServicesOfferedSection() {
             justifyContent: 'center',
           }}
         >
-          <span
-            style={{ width: 80, textAlign: 'center', display: 'inline-block' }}
-          >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+          <span style={{ width: 80, textAlign: 'center', display: 'inline-block' }}>
+            {loading || refreshing ? 'Refreshing...' : 'Refresh'}
           </span>
         </button>
       </div>
       <p className="text-sm text-slate-500 mb-4">
-        Upload and manage Service Offered videos. All videos in Bunny
-        (home-service-offered) will be shown below.
+        Upload and manage Service Offered videos. All videos in Bunny (home-service-offered) will be shown below.
       </p>
       <DragDropUploadManager
         mode="video"
@@ -407,7 +341,8 @@ function ServicesOfferedSection() {
         subsection="home-service-offered"
         items={items}
         onChange={setItems}
-        onUploadSuccess={fetchVideos}
+        onUploadSuccess={triggerRefresh}
+        onDeleteSuccess={triggerRefresh}
         allowAdd={true}
         allowEdit={true}
         allowDelete={true}
@@ -419,7 +354,6 @@ function ServicesOfferedSection() {
 }
 
 export default function HomeManager({ activeSub }) {
-  // Decide which top-level section to render based on sidebar selection
   const topSection = activeSub || 'Primary Graphics'
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -428,8 +362,7 @@ export default function HomeManager({ activeSub }) {
           Home Content Manager
         </h2>
         <p className="text-sm text-slate-600">
-          Manage homepage content by section. Use the sidebar to switch between
-          sections.
+          Manage homepage content by section. Use the sidebar to switch between sections.
         </p>
       </div>
 

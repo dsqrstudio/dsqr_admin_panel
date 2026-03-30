@@ -1,16 +1,7 @@
 // admin/components/managers/PricingManager.jsx
 'use client'
 import React, { useRef, useState, useEffect } from 'react'
-
-/**
- * PricingManager - original UI preserved, enhanced with:
- * - numeric-only typing (allows clearing)
- * - validation for required numeric fields (both USD & CAD)
- * - detects no-op saves ("No changes detected" toast)
- * - toast messages (top-right)
- *
- * Replace the simulated save with your real backend call in saveAll().
- */
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 const DEFAULT_PRICES = {
   Graphic: {
@@ -35,51 +26,86 @@ const DEFAULT_PRICES = {
   },
 }
 
+function clone(obj) {
+  if (!obj) return obj
+  return structuredClone(obj)
+}
+
 function deepClone(obj) {
-  return JSON.parse(JSON.stringify(obj))
+  if (!obj) return obj
+  return structuredClone(obj)
 }
 
 export default function PricingManager() {
-  const [prices, setPrices] = useState(deepClone(DEFAULT_PRICES))
-  const initialRef = useRef(deepClone(DEFAULT_PRICES))
+  const queryClient = useQueryClient()
+  const [prices, setPrices] = useState(clone(DEFAULT_PRICES))
+  const initialRef = useRef(clone(DEFAULT_PRICES))
   const [currency, setCurrency] = useState('USD')
   const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
 
   // invalidMap: { "Graphic.1.base.USD": "message" }
   const [invalidMap, setInvalidMap] = useState({})
   const [toasts, setToasts] = useState([])
 
-  // Load pricing data from backend
-  useEffect(() => {
-    const loadPricing = async () => {
-      try {
-        const API_BASE_URL =
-          process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/pricing?_t=${Date.now()}`,
-          {
-            credentials: 'include',
-          }
-        )
+  // --- React Query Fetch ---
+  const { data: serverPrices, isLoading: loading } = useQuery({
+    queryKey: ['admin-pricing'],
+    queryFn: async () => {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/pricing?_t=${Date.now()}`,
+        { credentials: 'include' },
+      )
+      if (!response.ok) throw new Error('Failed to load pricing')
+      const result = await response.json()
+      if (!result.success) throw new Error('API returned failure')
+      return result.data
+    },
+    onError: () => pushToast('error', 'Load failed', 'Failed to load pricing data'),
+    // Disable background refetching here so we don't accidentally overwrite decimal inputs if the user is typing slowly
+    refetchOnWindowFocus: false, 
+  })
 
-        if (response.ok) {
-          const result = await response.json()
-          if (result.success && result.data) {
-            setPrices(result.data)
-            initialRef.current = deepClone(result.data)
-          }
-        }
-      } catch (error) {
-        console.error('Error loading pricing:', error)
-        pushToast('error', 'Load failed', 'Failed to load pricing data')
-      } finally {
-        setLoading(false)
+  // Synchronize server state into local state intelligently
+  useEffect(() => {
+    if (serverPrices) {
+      if (!hasChanges()) {
+        // If the user hasn't typed anything yet, safely replace the matrix
+        setPrices(clone(serverPrices))
+        initialRef.current = clone(serverPrices)
+      } else {
+        // If the user IS typing but a fetch happens, just update the baseline reference silently
+        initialRef.current = clone(serverPrices)
       }
     }
+  }, [serverPrices])
 
-    loadPricing()
-  }, [])
+  // --- React Query Mutations ---
+  const saveMutation = useMutation({
+    mutationFn: async (payload) => {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/admin/pricing?_t=${Date.now()}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        }
+      )
+      if (!response.ok) throw new Error('Failed to save prices')
+    },
+    onMutate: () => setSaving(true),
+    onSuccess: (_, payload) => {
+      initialRef.current = clone(payload)
+      setPrices(clone(payload))
+      pushToast('success', 'Saved', 'Prices saved successfully.')
+      queryClient.invalidateQueries(['admin-pricing'])
+    },
+    onError: (err) => {
+      console.error(err)
+      pushToast('error', 'Save failed', 'Unable to save prices. See console for details.')
+    },
+    onSettled: () => setSaving(false)
+  })
 
   // --- Toast helpers ---
   function pushToast(type, title, message = '') {
@@ -90,21 +116,15 @@ export default function PricingManager() {
 
   // --- Input handling: allow empty or numeric-like typing ---
   function updatePrice(category, level, path, rawValue) {
-    // Accept empty string to allow clearing
-    if (
-      rawValue === '' ||
-      rawValue === null ||
-      typeof rawValue === 'undefined'
-    ) {
+    if (rawValue === '' || rawValue === null || typeof rawValue === 'undefined') {
       setPrices((p) => {
-        const copy = deepClone(p)
+        const copy = clone(p)
         if (!copy[category]) copy[category] = {}
         if (!copy[category][level]) copy[category][level] = {}
         if (!copy[category][level][path]) copy[category][level][path] = {}
         copy[category][level][path][currency] = ''
         return copy
       })
-      // clear any validation error for this key
       setInvalidMap((m) => {
         const copy = { ...m }
         delete copy[`${category}.${level}.${path}.${currency}`]
@@ -113,20 +133,14 @@ export default function PricingManager() {
       return
     }
 
-    // allow digits and optional single dot while typing (partial decimals allowed)
     const allowed = /^[0-9]*\.?[0-9]*$/
-    if (!allowed.test(rawValue)) {
-      // ignore invalid characters
-      return
-    }
+    if (!allowed.test(rawValue)) return
 
-    // otherwise store raw (as number if fully numeric), preserving typing like "12." as string
     const asNum = Number(rawValue)
-    const valueToStore =
-      Number.isFinite(asNum) && String(asNum) === rawValue ? asNum : rawValue
+    const valueToStore = Number.isFinite(asNum) && String(asNum) === rawValue ? asNum : rawValue
 
     setPrices((p) => {
-      const copy = deepClone(p)
+      const copy = clone(p)
       if (!copy[category]) copy[category] = {}
       if (!copy[category][level]) copy[category][level] = {}
       if (!copy[category][level][path]) copy[category][level][path] = {}
@@ -134,7 +148,6 @@ export default function PricingManager() {
       return copy
     })
 
-    // clear validation for this field as user edits
     setInvalidMap((m) => {
       const copy = { ...m }
       delete copy[`${category}.${level}.${path}.${currency}`]
@@ -167,18 +180,12 @@ export default function PricingManager() {
       for (const lvl of Object.keys(levels)) {
         const level = levels[lvl]
 
-        // base USD & CAD required
-        if (!isNumericValue(level?.base?.USD))
-          invalid[`${cat}.${lvl}.base.USD`] = 'Base USD required (number)'
-        if (!isNumericValue(level?.base?.CAD))
-          invalid[`${cat}.${lvl}.base.CAD`] = 'Base CAD required (number)'
+        if (!isNumericValue(level?.base?.USD)) invalid[`${cat}.${lvl}.base.USD`] = 'Base USD required (number)'
+        if (!isNumericValue(level?.base?.CAD)) invalid[`${cat}.${lvl}.base.CAD`] = 'Base CAD required (number)'
 
-        // fast if present requires USD & CAD
         if (level.fast) {
-          if (!isNumericValue(level?.fast?.USD))
-            invalid[`${cat}.${lvl}.fast.USD`] = 'Fast USD required (number)'
-          if (!isNumericValue(level?.fast?.CAD))
-            invalid[`${cat}.${lvl}.fast.CAD`] = 'Fast CAD required (number)'
+          if (!isNumericValue(level?.fast?.USD)) invalid[`${cat}.${lvl}.fast.USD`] = 'Fast USD required (number)'
+          if (!isNumericValue(level?.fast?.CAD)) invalid[`${cat}.${lvl}.fast.CAD`] = 'Fast CAD required (number)'
         }
       }
     }
@@ -187,7 +194,7 @@ export default function PricingManager() {
   }
 
   function sanitizeForSave(obj) {
-    const copy = deepClone(obj)
+    const copy = clone(obj)
     for (const cat of Object.keys(copy)) {
       for (const lvl of Object.keys(copy[cat])) {
         const level = copy[cat][lvl]
@@ -217,73 +224,29 @@ export default function PricingManager() {
 
   // --- Save handler ---
   async function saveAll() {
-    // 1. no-op detection
     if (!hasChanges()) {
       pushToast('info', 'No changes', 'No changes detected — nothing to save.')
       return
     }
 
-    // 2. validation
     const ok = runValidation()
     if (!ok) {
-      // pick first error to show
       const key = Object.keys(invalidMap)[0]
       const msg = invalidMap[key] || 'Validation error — check fields'
       pushToast('error', 'Validation error', msg)
       return
     }
 
-    // 3. save to backend
-    setSaving(true)
-    try {
-      const payload = sanitizeForSave(prices)
-      const API_BASE_URL =
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/pricing?_t=${Date.now()}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(payload),
-        }
-      )
-
-      if (response.ok) {
-        // on success update initialRef so subsequent saves detect no changes
-        initialRef.current = deepClone(payload)
-        setPrices(deepClone(payload))
-        pushToast('success', 'Saved', 'Prices saved successfully.')
-      } else {
-        throw new Error('Failed to save prices')
-      }
-    } catch (err) {
-      console.error(err)
-      pushToast(
-        'error',
-        'Save failed',
-        'Unable to save prices. See console for details.'
-      )
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function pushToast(type, title, message = '') {
-    const id = Date.now() + Math.random().toString(16).slice(2)
-    setToasts((t) => [...t, { id, type, title, message }])
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000)
+    const payload = sanitizeForSave(prices)
+    saveMutation.mutate(payload)
   }
 
   function isInvalidKey(category, level, tier, cur) {
     return !!invalidMap[`${category}.${level}.${tier}.${cur}`]
   }
 
-  // --- UI: same layout as you provided with small invalid indication and toasts ---
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Toast container */}
       <div className="fixed right-6 top-6 z-50 flex flex-col gap-3">
         {toasts.map((t) => (
           <div
@@ -316,7 +279,7 @@ export default function PricingManager() {
         </select>
         <button
           onClick={saveAll}
-          className="ml-auto rounded bg-[#cff000] px-3 py-1 font-semibold"
+          className="ml-auto rounded bg-[#cff000] px-3 py-1 font-semibold disabled:opacity-50"
           disabled={saving || loading}
         >
           {saving ? 'Saving...' : loading ? 'Loading...' : 'Save All'}
@@ -333,42 +296,30 @@ export default function PricingManager() {
                   <div className="w-24 font-medium">Level {lvl}</div>
 
                   <div className="flex-1">
-                    <label className="text-xs text-gray-500">
-                      Base ({currency})
-                    </label>
+                    <label className="text-xs text-gray-500">Base ({currency})</label>
                     <input
                       inputMode="numeric"
                       pattern="[0-9]*"
                       type="text"
                       value={prices[cat][lvl].base?.[currency] ?? ''}
-                      onChange={(e) =>
-                        updatePrice(cat, lvl, 'base', e.target.value)
-                      }
+                      onChange={(e) => updatePrice(cat, lvl, 'base', e.target.value)}
                       className={`w-full rounded border px-2 py-1 ${
-                        isInvalidKey(cat, lvl, 'base', currency)
-                          ? 'border-red-400'
-                          : ''
+                        isInvalidKey(cat, lvl, 'base', currency) ? 'border-red-400' : ''
                       }`}
                     />
                   </div>
 
                   {prices[cat][lvl].fast && (
                     <div className="flex-1">
-                      <label className="text-xs text-gray-500">
-                        Fast ({currency})
-                      </label>
+                      <label className="text-xs text-gray-500">Fast ({currency})</label>
                       <input
                         inputMode="numeric"
                         pattern="[0-9]*"
                         type="text"
                         value={prices[cat][lvl].fast?.[currency] ?? ''}
-                        onChange={(e) =>
-                          updatePrice(cat, lvl, 'fast', e.target.value)
-                        }
+                        onChange={(e) => updatePrice(cat, lvl, 'fast', e.target.value)}
                         className={`w-full rounded border px-2 py-1 ${
-                          isInvalidKey(cat, lvl, 'fast', currency)
-                            ? 'border-red-400'
-                            : ''
+                          isInvalidKey(cat, lvl, 'fast', currency) ? 'border-red-400' : ''
                         }`}
                       />
                     </div>

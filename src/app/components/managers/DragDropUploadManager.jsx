@@ -361,25 +361,6 @@ export default function DragDropUploadManager({
     if (item._id || item.id) {
       try {
         const itemId = item._id || item.id
-        {
-          previewModal && previewModal.type === 'video' && (
-            <VideoPreviewModal
-              isOpen={!!previewModal}
-              onClose={() => setPreviewModal(null)}
-              src={previewModal.src}
-              poster={previewModal.poster}
-            />
-          )
-        }
-        {
-          previewModal && previewModal.type === 'image' && (
-            <ImagePreviewModal
-              isOpen={!!previewModal}
-              onClose={() => setPreviewModal(null)}
-              src={previewModal.src}
-            />
-          )
-        }
         await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${itemId}?_t=${Date.now()}`,
           {

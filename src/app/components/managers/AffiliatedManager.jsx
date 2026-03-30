@@ -1,8 +1,7 @@
-// admin/components/managers/AffiliatedManager.jsx
 'use client'
 import React, { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import DragDropUploadManager from './DragDropUploadManager'
-import MediaListManager from './MediaListManager'
 import AffiliateExtraGraphicSection from './AffiliateExtraGraphicSection'
 import { useToast } from '@/components/ui/toast'
 
@@ -10,50 +9,44 @@ const AFFILIATES_CATEGORY = 'affiliated'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export default function AffiliatedManager() {
+  const queryClient = useQueryClient()
   const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { showToast, ToastComponent } = useToast()
 
-  // Fetch items on mount
-  useEffect(() => {
-    console.log('🤝 AffiliatedManager: Fetching items from API...')
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}?_t=${Date.now()}`,
-      {
+  // --- React Query Fetch ---
+  const { data: serverData, isLoading, isFetching } = useQuery({
+    queryKey: ['admin-media-items', AFFILIATES_CATEGORY],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}?_t=${Date.now()}`, {
         credentials: 'include',
-      }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        console.log('📦 AffiliatedManager: API Response:', data)
-        if (data.success && Array.isArray(data.data)) {
-          console.log('✅ Affiliate items found:', data.data.length, data.data)
-          setItems(data.data)
-        } else {
-          console.error('❌ AffiliatedManager: Invalid response format', data)
-        }
       })
-      .catch((err) => {
-        console.error(
-          '❌ AffiliatedManager: Failed to fetch affiliate items:',
-          err
-        )
-      })
-      .finally(() => {
-        setLoading(false)
-      })
-  }, [])
+      if (!res.ok) throw new Error('Fetch failed')
+      const data = await res.json()
+      if (data?.success && Array.isArray(data.data)) return data.data
+      return []
+    },
+    onError: () => showToast('Failed to load affiliate items', 'error'),
+  })
 
-  // Save handler
-  const handleSave = async (newItems) => {
+  // Synchronize server cache neatly into the UI local buckets
+  useEffect(() => {
+    if (serverData) setItems(serverData)
+  }, [serverData])
+
+  const triggerRefresh = () => {
+    queryClient.invalidateQueries(['admin-media-items', AFFILIATES_CATEGORY])
+  }
+
+  const handleOrderChange = (newItems) => {
     setItems(newItems)
+    triggerRefresh()
   }
 
   // Multi-select state
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState([])
   const allIds = items.map((item) => item._id || item.id)
-  const isAllSelected =
-    allIds.length > 0 && selectedIds.length === allIds.length
+  const isAllSelected = allIds.length > 0 && selectedIds.length === allIds.length
 
   const handleSelectAll = (e) => {
     if (e.target.checked) setSelectedIds(allIds)
@@ -64,91 +57,43 @@ export default function AffiliatedManager() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
   }
+
   const handleDeleteSelected = async () => {
     if (!selectedIds.length) return
     if (!window.confirm('Delete selected items?')) return
     try {
       await Promise.all(
         selectedIds.map(async (id) => {
-          await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}?_t=${Date.now()}`,
-            {
-              method: 'DELETE',
-              credentials: 'include',
-            }
-          )
+          await fetch(`${API_BASE_URL}/api/admin/media-items/${id}?_t=${Date.now()}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          })
         })
       )
+      showToast('Items deleted successfully', 'success')
+      setSelectedIds([])
+      setSelectMode(false)
+      triggerRefresh()
     } catch (err) {
-      // Optionally show error toast
+      showToast('Error deleting items', 'error')
     }
-    setSelectedIds([])
-    setSelectMode(false)
-    setLoading(true)
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}?_t=${Date.now()}`,
-      { credentials: 'include' }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.data)) {
-          setItems(data.data)
-        } else {
-          setItems([])
-        }
-      })
-      .catch(() => setItems([]))
-      .finally(() => {
-        setLoading(false)
-        setTimeout(() => setRefreshing(false), 800)
-      })
   }
 
-  const [refreshing, setRefreshing] = useState(false)
-  const handleRefresh = () => {
-    setRefreshing(true)
-    // Re-run the fetch logic
-    setLoading(true)
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${AFFILIATES_CATEGORY}?_t=${Date.now()}`,
-      { credentials: 'include' }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.data)) {
-          setItems(data.data)
-        } else {
-          setItems([])
-        }
-      })
-      .catch(() => setItems([]))
-      .finally(() => {
-        setLoading(false)
-        setTimeout(() => setRefreshing(false), 800)
-      })
-  }
   return (
     <div className="w-full max-w-7xl mx-auto">
+      {ToastComponent}
       <div className="flex items-center mb-4">
         <h2 className="text-2xl font-semibold mr-4">
           Affiliates — Promotional Modal Images
         </h2>
         <button
-          onClick={handleRefresh}
+          onClick={triggerRefresh}
           className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition-colors duration-150 shadow-sm"
           title="Refresh data"
-          disabled={refreshing}
+          disabled={isLoading || isFetching}
         >
-          {refreshing ? 'Refreshing...' : '⟳ Refresh'}
+          {isLoading || isFetching ? 'Refreshing...' : '⟳ Refresh'}
         </button>
-        {/*
-        <button
-          className="ml-4 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors duration-150 shadow-sm"
-          onClick={() => setSelectMode((m) => !m)}
-        >
-          {selectMode ? 'Cancel Multi-Select' : 'Select Multiple'}
-        </button>
-        */}
         {selectMode && (
           <div className="ml-8 flex items-center gap-2">
             <input
@@ -171,7 +116,7 @@ export default function AffiliatedManager() {
         Manage images used in affiliate or promotional modals. Upload images
         directly with drag-and-drop reordering.
       </p>
-      {loading ? (
+      {isLoading && items.length === 0 ? (
         <div className="text-center py-8 text-slate-500">Loading...</div>
       ) : (
         <DragDropUploadManager
@@ -179,7 +124,9 @@ export default function AffiliatedManager() {
           category={AFFILIATES_CATEGORY}
           subsection="default"
           items={items}
-          onChange={handleSave}
+          onChange={handleOrderChange}
+          onUploadSuccess={triggerRefresh}
+          onDeleteSuccess={triggerRefresh}
           renderItemExtra={
             selectMode
               ? (item) => (

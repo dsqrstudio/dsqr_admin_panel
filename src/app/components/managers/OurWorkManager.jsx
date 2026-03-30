@@ -1,5 +1,6 @@
 'use client'
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ConfirmModal } from '@/components/ui/modal'
 import DragDropUploadManager from './DragDropUploadManager'
 import HlsVideoPlayer from './HlsVideoPlayer'
@@ -46,21 +47,265 @@ const FEATURED_PROJECTS_STRUCTURE = {
   ],
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+
+function BeforeAfterVideoManager() {
+  const queryClient = useQueryClient()
+  const [videos, setVideos] = useState([])
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [uploadingId, setUploadingId] = useState(null)
+  const [uploadingType, setUploadingType] = useState(null)
+  const { showToast, ToastComponent } = useToast()
+
+  const { data: serverData, isLoading, isFetching } = useQuery({
+    queryKey: ['admin-media-items', 'test', 'Before/After Video'],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/media-items/category/test?subsection=Before/After Video&_t=${Date.now()}`,
+        { credentials: 'include' }
+      )
+      if (!res.ok) throw new Error('Fetch failed')
+      const data = await res.json()
+      const items = Array.isArray(data.data) ? data.data : []
+      const pairs = {}
+      for (const item of items) {
+        if (!item.pairId) continue
+        if (!pairs[item.pairId]) pairs[item.pairId] = { before: null, after: null }
+        if (item.role === 'before') pairs[item.pairId].before = item
+        if (item.role === 'after') pairs[item.pairId].after = item
+      }
+      return Object.values(pairs)
+    },
+    onError: () => showToast('Failed to load videos', 'error'),
+  })
+
+  useEffect(() => {
+    if (serverData) setVideos(serverData)
+  }, [serverData])
+
+  const triggerRefresh = () => queryClient.invalidateQueries(['admin-media-items', 'test', 'Before/After Video'])
+
+  const handleDeleteBefore = (id, pair) => setDeleteTarget({ type: 'before', id, pair })
+  const handleDeleteAfter = (id) => setDeleteTarget({ type: 'after', id })
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    if (deleteTarget.type === 'before') {
+      let beforeId = deleteTarget.pair?.before?._id || deleteTarget.id
+      let afterId = deleteTarget.pair?.after?._id
+      let success = true
+      try {
+        if (beforeId) {
+          const res = await fetch(`${API_BASE_URL}/api/admin/media-items/${beforeId}`, { method: 'DELETE', credentials: 'include' })
+          if (!res.ok) success = false
+        }
+        if (afterId) {
+          const res2 = await fetch(`${API_BASE_URL}/api/admin/media-items/${afterId}`, { method: 'DELETE', credentials: 'include' })
+          if (!res2.ok) success = false
+        }
+        showToast(success ? 'Pair deleted successfully' : 'Failed to delete pair', success ? 'success' : 'error')
+      } catch {
+        showToast('Failed to delete pair', 'error')
+      }
+    } else if (deleteTarget.type === 'after') {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/media-items/${deleteTarget.id}`, {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ after: '', afterPoster: '' }),
+        })
+        if (res.ok) showToast('After video removed', 'success')
+        else showToast('Failed to remove after video', 'error')
+      } catch {
+        showToast('Failed to remove after video', 'error')
+      }
+    }
+    setDeleteTarget(null)
+    triggerRefresh()
+  }
+
+  const handleBeforeUpload = async (file) => {
+    setUploadingId('before')
+    setUploadingType('before')
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', 'video')
+    formData.append('category', 'test')
+    formData.append('subsection', 'Before/After Video')
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data && data.success) {
+        showToast('Before video uploaded!', 'success')
+      } else {
+        showToast((data && data.error) || 'Upload failed', 'error')
+      }
+    } catch {
+      showToast('Before video upload failed', 'error')
+    } finally {
+      setUploadingId(null)
+      setUploadingType(null)
+      triggerRefresh()
+    }
+  }
+
+  const handleAfterUpload = async (file, beforeId) => {
+    setUploadingId(beforeId)
+    setUploadingType('after')
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', 'video')
+    formData.append('category', 'test')
+    formData.append('subsection', 'Before/After Video')
+    formData.append('beforeId', beforeId)
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/upload`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (data && data.success) {
+        showToast('After video uploaded!', 'success')
+      } else {
+        showToast((data && data.error) || 'Upload failed', 'error')
+      }
+    } catch {
+      showToast('After video upload failed', 'error')
+    } finally {
+      setUploadingId(null)
+      setUploadingType(null)
+      triggerRefresh()
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      {ToastComponent}
+      <h3 className="text-2xl font-bold mb-4 text-slate-800">
+        Before / After Videos
+      </h3>
+      <p className="text-sm text-slate-600 mb-6">
+        Upload a before video, then add its after video.
+      </p>
+
+      <div className="flex items-center gap-4 mb-6">
+        <label className="block font-semibold mb-2 text-slate-800">
+          Upload New Before Video
+        </label>
+        <input
+          type="file"
+          accept="video/*"
+          disabled={uploadingId === 'before' && uploadingType === 'before'}
+          className="w-full max-w-sm text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#cff000] file:text-slate-900 hover:file:bg-[#b8dc00] transition"
+          onChange={(e) => e.target.files && handleBeforeUpload(e.target.files[0])}
+        />
+        {uploadingId === 'before' && uploadingType === 'before' && (
+          <span className="text-blue-600 text-sm font-medium">Uploading...</span>
+        )}
+        <button
+          onClick={triggerRefresh}
+          disabled={isLoading || isFetching}
+          className="ml-auto px-4 py-2 bg-slate-200 hover:bg-slate-300 rounded text-sm font-semibold transition disabled:opacity-50"
+        >
+          {isLoading || isFetching ? 'Refeshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {videos.map((pair, idx) => (
+          <div key={idx} className="border p-4 rounded-xl shadow-sm bg-slate-50 relative">
+            <div className="flex gap-4">
+              {/* Before side */}
+              <div className="flex-1 flex flex-col bg-white p-3 rounded-lg shadow-sm border border-slate-100">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-slate-700">Before</span>
+                  <button
+                    onClick={() => handleDeleteBefore(pair.before?._id, pair)}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    Delete Pair
+                  </button>
+                </div>
+                {pair.before ? (
+                  <HlsVideoPlayer src={pair.before.src} poster={pair.before.poster} style={{ width: '100%', borderRadius: 8 }} />
+                ) : (
+                  <div className="text-xs text-slate-400">Missing before video</div>
+                )}
+              </div>
+              
+              {/* After side */}
+              <div className="flex-1 flex flex-col bg-white p-3 rounded-lg shadow-sm border border-slate-100 justify-center">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-slate-700">After</span>
+                  {/* {pair.after && (
+                    <button
+                      onClick={() => handleDeleteAfter(pair.after._id)}
+                      className="text-xs text-red-500 hover:underline"
+                    >
+                      Remove After
+                    </button>
+                  )} */}
+                </div>
+                {pair.after ? (
+                  <HlsVideoPlayer src={pair.after.src} poster={pair.after.poster} style={{ width: '100%', borderRadius: 8 }} />
+                ) : pair.before && !pair.after ? (
+                  <div className="w-full flex flex-col items-center">
+                    <label className="text-xs font-semibold mb-1">Add After Video</label>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      disabled={uploadingId === pair.before._id && uploadingType === 'after'}
+                      className="w-full text-xs text-slate-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-slate-200 file:text-black"
+                      onChange={(e) => e.target.files && handleAfterUpload(e.target.files[0], pair.before._id)}
+                    />
+                    {uploadingId === pair.before._id && uploadingType === 'after' && (
+                      <span className="text-blue-500 text-xs mt-1">Uploading...</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-slate-400">N/A</div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+        {videos.length === 0 && !isLoading && (
+          <div className="col-span-2 text-center text-slate-500 py-6">No videos found.</div>
+        )}
+      </div>
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Video?"
+        message="Are you sure you want to delete this content? This cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+      />
+    </div>
+  )
+}
+
 export default function OurWorkManager({ activeSub }) {
+  const queryClient = useQueryClient()
   const active = activeSub || 'Featured Projects'
   const [selectedSection, setSelectedSection] = useState('Graphics')
   const [selectedSubsection, setSelectedSubsection] = useState('Ad creatives')
   const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState([])
   const [selectAll, setSelectAll] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const { showToast, ToastComponent } = useToast()
 
   const sections = Object.keys(FEATURED_PROJECTS_STRUCTURE)
   const subsections = FEATURED_PROJECTS_STRUCTURE[selectedSection] || []
 
-  // Helper to get correct category value
   const getCategory = useCallback(() => {
     if (selectedSection === 'Videos') return 'test'
     if (selectedSection === 'Graphics') return 'graphics'
@@ -68,607 +313,189 @@ export default function OurWorkManager({ activeSub }) {
     return selectedSection.toLowerCase()
   }, [selectedSection])
 
-  // Fetch items when section/subsection changes
-  useEffect(() => {
-    async function fetchItems() {
-      setLoading(true)
-      try {
-        const res = await fetch(
-          `${
-            process.env.NEXT_PUBLIC_API_URL
-          }/api/admin/media-items/category/${getCategory()}?subsection=${encodeURIComponent(
-            selectedSubsection,
-          )}&_t=${Date.now()}`,
-        )
-        const data = await res.json()
-        setItems(data?.data || [])
-        setSelectedIds([])
-        setSelectAll(false)
-      } catch (err) {
-        setItems([])
-        setSelectedIds([])
-        setSelectAll(false)
-      }
-      setLoading(false)
-    }
-    fetchItems()
-  }, [selectedSection, selectedSubsection, getCategory])
+  const currentCategory = getCategory()
 
-  // Refresh after upload/delete
-  const handleRefresh = () => {
-    setLoading(true)
-    fetch(
-      `${
-        process.env.NEXT_PUBLIC_API_URL
-      }/api/admin/media-items/category/${getCategory()}?subsection=${encodeURIComponent(
-        selectedSubsection,
-      )}&_t=${Date.now()}`,
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        setItems(data?.data || [])
-        setSelectedIds([])
-        setSelectAll(false)
-        showToast('Data refreshed!', 'success')
-      })
-      .catch(() => showToast('Failed to refresh data', 'error'))
-      .finally(() => setLoading(false))
+  // --- React Query Fetch ---
+  const { data: serverData, isLoading, isFetching } = useQuery({
+    queryKey: ['admin-media-items', currentCategory, selectedSubsection],
+    queryFn: async () => {
+      const res = await fetch(
+        `${API_BASE_URL}/api/admin/media-items/category/${currentCategory}?subsection=${encodeURIComponent(
+          selectedSubsection
+        )}&_t=${Date.now()}`,
+        { credentials: 'include' }
+      )
+      if (!res.ok) throw new Error('Fetch failed')
+      const data = await res.json()
+      if (data?.success && Array.isArray(data.data)) return data.data
+      return []
+    },
+    onError: () => showToast('Failed to load items', 'error')
+  })
+
+  useEffect(() => {
+    if (serverData) setItems(serverData)
+  }, [serverData])
+
+  const triggerRefresh = () => {
+    queryClient.invalidateQueries(['admin-media-items', currentCategory, selectedSubsection])
   }
 
-  // Select all logic
+  const handleDragChange = (newItems) => {
+    setItems(newItems)
+    triggerRefresh()
+  }
+
   const handleSelectAll = (checked) => {
     setSelectAll(checked)
-    if (checked) {
-      setSelectedIds(items.map((item) => item._id))
-    } else {
-      setSelectedIds([])
-    }
+    if (checked) setSelectedIds(items.map((item) => item._id || item.id))
+    else setSelectedIds([])
   }
 
-  // Individual select
   const handleSelect = (id) => {
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
     )
   }
 
-  // Bulk delete
   const handleBulkDelete = async () => {
     if (!selectedIds.length) return
-    if (!window.confirm(`Delete ${selectedIds.length} selected item(s)?`))
-      return
-    setDeleting(true)
+    if (!window.confirm(`Delete ${selectedIds.length} selected item(s)?`)) return
     try {
-      for (const id of selectedIds) {
-        await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}?_t=${Date.now()}`,
-          {
+      await Promise.all(
+        selectedIds.map(async (id) => {
+          await fetch(`${API_BASE_URL}/api/admin/media-items/${id}`, {
             method: 'DELETE',
             credentials: 'include',
-          },
-        )
-      }
+          })
+        })
+      )
       showToast('Selected items deleted', 'success')
-      handleRefresh()
+      setSelectedIds([])
+      setSelectAll(false)
+      triggerRefresh()
     } catch {
       showToast('Failed to delete selected items', 'error')
     }
-    setDeleting(false)
-  }
-
-  // --- BEFORE/AFTER VIDEO: NORMAL UPLOAD + AFTER BUTTON ---
-  function BeforeAfterVideoManager() {
-    const [videos, setVideos] = useState([])
-    const [loading, setLoading] = useState(false)
-    const [uploadingId, setUploadingId] = useState(null) // id or 'before'
-    const [uploadingType, setUploadingType] = useState(null) // 'before' or 'after'
-    const [replaceId, setReplaceId] = useState(null)
-    const [replaceType, setReplaceType] = useState(null) // 'before' or 'after'
-    const API_BASE_URL =
-      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
-    const { showToast, ToastComponent } = useToast()
-    // Modal state for delete confirmation (common for both before/after)
-    const [deleteTarget, setDeleteTarget] = useState(null) // { type: 'before'|'after', id: string }
-
-    // Delete before video (deletes the whole pair)
-    const handleDeleteBefore = (id, pair) => setDeleteTarget({ type: 'before', id, pair })
-    // Delete after video (removes only after, keeps before)
-    const handleDeleteAfter = (id) => setDeleteTarget({ type: 'after', id })
-
-    // Confirm delete
-    const confirmDelete = async () => {
-      if (!deleteTarget) return
-      if (deleteTarget.type === 'before') {
-        let beforeId = deleteTarget.pair?.before?._id || deleteTarget.id
-        let afterId = deleteTarget.pair?.after?._id
-        let success = true
-        try {
-          // Delete before
-          if (beforeId) {
-            const res = await fetch(
-              `${API_BASE_URL}/api/admin/media-items/${beforeId}?_t=${Date.now()}`,
-              {
-                method: 'DELETE',
-                credentials: 'include',
-              },
-            )
-            if (!res.ok) success = false
-          }
-          // Delete after
-          if (afterId) {
-            const res2 = await fetch(
-              `${API_BASE_URL}/api/admin/media-items/${afterId}?_t=${Date.now()}`,
-              {
-                method: 'DELETE',
-                credentials: 'include',
-              },
-            )
-            if (!res2.ok) success = false
-          }
-          showToast(success ? 'Pair deleted successfully' : 'Failed to delete pair', success ? 'success' : 'error')
-        } catch {
-          showToast('Failed to delete pair', 'error')
-        }
-      } else if (deleteTarget.type === 'after') {
-        try {
-          const res = await fetch(
-            `${API_BASE_URL}/api/admin/media-items/${deleteTarget.id}?_t=${Date.now()}`,
-            {
-              method: 'PATCH',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ after: '', afterPoster: '' }),
-            },
-          )
-          if (res.ok) {
-            showToast('After video removed', 'success')
-          } else {
-            showToast('Failed to remove after video', 'error')
-          }
-        } catch {
-          showToast('Failed to remove after video', 'error')
-        }
-      }
-      setDeleteTarget(null)
-      fetchVideos()
-    }
-
-    // Replace before/after video
-    const handleReplace = async (file, id, type) => {
-      if (!file) return
-      setReplaceId(id)
-      setReplaceType(type)
-      const formData = new FormData()
-      formData.append('file', file)
-      let endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace?_t=${Date.now()}`
-      if (type === 'after') {
-        endpoint = `${API_BASE_URL}/api/admin/media-items/${id}/replace-after?_t=${Date.now()}`
-      }
-      try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-        })
-        if (res.ok) {
-          showToast(
-            `${type === 'after' ? 'After' : 'Before'} video replaced!`,
-            'success',
-          )
-        } else {
-          showToast('Failed to replace video', 'error')
-        }
-      } catch {
-        showToast('Failed to replace video', 'error')
-      }
-      setReplaceId(null)
-      setReplaceType(null)
-      fetchVideos()
-    }
-
-    // Fetch all before/after videos as separate docs, group by pairId
-    const fetchVideos = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/api/admin/media-items/category/test?subsection=Before/After Video&_t=${Date.now()}`,
-          { credentials: 'include' },
-        )
-        const data = await res.json()
-        // Group by pairId, role
-        const items = Array.isArray(data.data) ? data.data : []
-        console.log('[FRONTEND FETCHED ITEMS]', items)
-        const pairs = {}
-        for (const item of items) {
-          if (!item.pairId) continue
-          if (!pairs[item.pairId])
-            pairs[item.pairId] = { before: null, after: null }
-          if (item.role === 'before') pairs[item.pairId].before = item
-          if (item.role === 'after') pairs[item.pairId].after = item
-        }
-        setVideos(Object.values(pairs))
-      } catch (err) {
-        console.error('[FRONTEND FETCH ERROR]', err)
-        setVideos([])
-      }
-      setLoading(false)
-    }
-
-    useEffect(() => {
-      fetchVideos()
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-
-    // Upload before video
-    const handleBeforeUpload = async (file) => {
-      setUploadingId('before')
-      setUploadingType('before')
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('type', 'video')
-      formData.append('category', 'test')
-      formData.append('subsection', 'Before/After Video')
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/api/admin/media-items/upload?_t=${Date.now()}`,
-          {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
-          },
-        )
-        let data = null
-        try {
-          data = await res.json()
-        } catch (e) {
-          showToast('Upload failed: Invalid server response', 'error')
-        }
-        console.log('[FRONTEND UPLOAD BEFORE RESPONSE]', data)
-        if (data && data.success) {
-          showToast('Before video uploaded!', 'success')
-        } else {
-          showToast(
-            (data && data.message) || 'Before video upload failed',
-            'error',
-          )
-        }
-      } catch (err) {
-        showToast('Before video upload failed (network/server error)', 'error')
-      } finally {
-        setUploadingId(null)
-        setUploadingType(null)
-        fetchVideos()
-      }
-    }
-
-    // Upload after video for a given before video
-    const handleAfterUpload = async (file, beforeId) => {
-      setUploadingId(beforeId)
-      setUploadingType('after')
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('type', 'video')
-      formData.append('category', 'test')
-      formData.append('subsection', 'Before/After Video')
-      formData.append('beforeId', beforeId)
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/api/admin/media-items/upload?_t=${Date.now()}`,
-          {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
-          },
-        )
-        let data = null
-        try {
-          data = await res.json()
-        } catch (e) {
-          showToast('Upload failed: Invalid server response', 'error')
-        }
-        console.log('[FRONTEND UPLOAD AFTER RESPONSE]', data)
-        if (data && data.success) {
-          showToast('After video uploaded!', 'success')
-        } else {
-          showToast(
-            (data && data.message) || 'After video upload failed',
-            'error',
-          )
-        }
-      } catch (err) {
-        showToast('After video upload failed (network/server error)', 'error')
-      } finally {
-        setUploadingId(null)
-        setUploadingType(null)
-        fetchVideos()
-      }
-    }
-
-    return (
-     <div className="max-w-7xl mx-auto">
-           <div className="rounded-xl border bg-white p-8 shadow-md mb-10">
-             {ToastComponent}
-             <h2 className="text-3xl font-extrabold text-slate-900 mb-2 flex items-center gap-2">
-               <span role="img" aria-label="before-after">
-                 🎬
-               </span>{' '}
-               Our Work — Before / After Videos
-             </h2>
-             <p className="text-base text-slate-600 mb-6">
-               <b>Step 1:</b> Add Before Video first.
-               <br />
-               <b>Step 2:</b> For each video, use the &#39;Upload After Video&#39;
-               button to add the after video.
-               <br />
-               Both videos will be shown side by side after upload. You can also
-               replace or delete videos.
-             </p>
-             <div className="flex items-center gap-4 mb-6">
-               <label className="block font-semibold mb-2 text-slate-800">
-                 Upload Before Video
-               </label>
-               <input
-                 type="file"
-                 accept="video/*"
-                 disabled={uploadingId === 'before' && uploadingType === 'before'}
-                 className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#cff000] file:text-slate-900 hover:file:bg-lime-200"
-                 onChange={(e) =>
-                   e.target.files && handleBeforeUpload(e.target.files[0])
-                 }
-               />
-               {uploadingId === 'before' && uploadingType === 'before' ? (
-                 <span className="ml-4 text-blue-600 font-medium">Uploading...</span>
-               ) : null}
-               <button
-                 className="ml-4 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-base font-medium text-slate-800 transition disabled:opacity-60"
-                 onClick={fetchVideos}
-                 disabled={loading}
-               >
-                 {loading ? 'Refreshing...' : 'Refresh'}
-               </button>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               {videos.map((pair, idx) => (
-                 <div
-                   key={pair.before?._id || pair.after?._id || idx}
-                   className="border rounded-xl p-3 flex flex-col gap-1 bg-gray-50 shadow-sm w-full relative"
-                 >
-                   {/* Common delete button above both before/after */}
-                   {(pair.before || pair.after) && (
-                     <div className="flex justify-end mb-2">
-                       <button
-                         className="text-xs text-red-600 hover:underline font-semibold px-3 py-1 rounded"
-                         onClick={() => handleDeleteBefore(pair.before?._id || pair.after?._id, pair)}
-                       >
-                         Delete
-                       </button>
-                     </div>
-                   )}
-                   <div className="flex flex-col md:flex-row gap-4 items-stretch">
-                     {/* Before Video Card */}
-                     <div className="flex-1 flex flex-col items-center bg-white rounded-lg p-4 shadow">
-                       <div className="flex w-full justify-between items-center mb-2">
-                         <span className="font-semibold text-slate-800">Before</span>
-                       </div>
-                       {pair.before ? (
-                         <HlsVideoPlayer
-                           src={pair.before.src}
-                           poster={pair.before.poster}
-                           style={{ width: '100%', borderRadius: 8, maxHeight: 220 }}
-                         />
-                       ) : (
-                         <div className="text-xs text-slate-400 mt-2">
-                           No before video
-                         </div>
-                       )}
-                     </div>
-                     {/* After Video Card */}
-                     <div className="flex-1 flex flex-col items-center bg-white rounded-lg p-4 shadow justify-center">
-                       <div className="flex w-full justify-between items-center mb-2">
-                         <span className="font-semibold text-slate-800">After</span>
-                       </div>
-                       {pair.after ? (
-                         <HlsVideoPlayer
-                           src={pair.after.src}
-                           poster={pair.after.poster}
-                           style={{ width: '100%', borderRadius: 8, maxHeight: 220 }}
-                         />
-                       ) : pair.before && !pair.after ? (
-                         <div className="w-full flex flex-col items-center">
-                           <label className="block font-medium text-slate-700 mb-1">
-                             Upload After Video
-                           </label>
-                           <input
-                             type="file"
-                             accept="video/*"
-                             disabled={
-                               uploadingId === pair.before._id &&
-                               uploadingType === 'after'
-                             }
-                             className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-[#cff000] file:text-slate-900 hover:file:bg-lime-200"
-                             onChange={(e) =>
-                               e.target.files &&
-                               handleAfterUpload(e.target.files[0], pair.before._id)
-                             }
-                           />
-                           {uploadingId === pair.before._id &&
-                           uploadingType === 'after' ? (
-                             <span className="ml-4 text-blue-600 font-medium">
-                               Uploading...
-                             </span>
-                           ) : null}
-                         </div>
-                       ) : (
-                         <div className="text-xs text-slate-400 mt-2">
-                           No after video
-                         </div>
-                       )}
-                     </div>
-                   </div>
-                 </div>
-               ))}
-               {videos.length === 0 && !loading && (
-                 <div className="col-span-2 text-center text-slate-500 py-8 text-lg">
-                   No before/after videos found.
-                 </div>
-               )}
-             </div>
-             <ConfirmModal
-               isOpen={!!deleteTarget}
-               onClose={() => setDeleteTarget(null)}
-               onConfirm={confirmDelete}
-               title="Delete Video Pair?"
-               message="Are you sure you want to delete this before/after video pair? This cannot be undone."
-               confirmText="Delete"
-               cancelText="Cancel"
-               variant="danger"
-             />
-           </div>
-           
-         </div>
-    )
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4">
-      {/* Featured Projects View */}
-      <div className={active !== 'Before/After Video' ? 'block' : 'hidden'}>
-        <div className="flex items-center mb-6">
-          <h2 className="text-3xl font-bold text-slate-900 mr-4">
-            Our Work — Featured Projects
-          </h2>
-          <button
-            onClick={() => {
-              handleRefresh()
-              showToast('Refreshing data...', 'info')
-            }}
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition-colors duration-150 shadow-sm"
-            title="Refresh data"
-            disabled={loading}
-          >
-            &#x21bb; Refresh
-          </button>
-        </div>
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-          {sections.map((sec) => (
+    <div className="max-w-7xl mx-auto space-y-8">
+      {ToastComponent}
+      
+      {active === 'Featured Projects' && (
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b pb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Featured Projects</h2>
+              <p className="text-sm text-slate-500">
+                Manage category grid items.
+              </p>
+            </div>
             <button
-              key={sec}
-              onClick={() => {
-                setSelectedSection(sec)
-                setSelectedSubsection(FEATURED_PROJECTS_STRUCTURE[sec][0])
-              }}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                selectedSection === sec
-                  ? 'bg-[#cff000] text-slate-900 font-semibold'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              onClick={triggerRefresh}
+              disabled={isLoading || isFetching}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-sm font-medium transition"
             >
-              {sec}
+              {isLoading || isFetching ? 'Refreshing...' : 'Refresh'}
             </button>
-          ))}
-        </div>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Category
-          </label>
-          <select
-            value={selectedSubsection}
-            onChange={(e) => setSelectedSubsection(e.target.value)}
-            className="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-lg"
-          >
-            {subsections.map((sub) => (
-              <option key={sub} value={sub}>
-                {sub}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="bg-white rounded-lg border p-6">
-          <h3 className="text-lg font-semibold mb-2">
-            {selectedSection} — {selectedSubsection}
-          </h3>
-          <p className="text-sm text-slate-600 mb-4">
-            Upload {selectedSection === 'Videos' ? 'videos' : 'images'} for this
-            category. Drag and drop to reorder.
-          </p>
-          {ToastComponent}
-          {/* Select All, Delete, and Count UI */}
-          <div className="flex items-center mb-4 gap-4">
-            <label className="flex items-center gap-2 select-none">
-              <input
-                type="checkbox"
-                checked={selectAll}
-                onChange={(e) => handleSelectAll(e.target.checked)}
-                disabled={loading || !items.length}
-              />
-              <span className="text-sm">Select All</span>
-            </label>
-            <button
-              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-red-300 bg-red-50 hover:bg-red-100 text-red-700 transition disabled:opacity-50"
-              onClick={handleBulkDelete}
-              disabled={!selectedIds.length || deleting}
-            >
-              Delete Selected
-            </button>
-            {selectedIds.length > 0 && (
-              <span className="text-xs text-slate-600">
-                {selectedIds.length} selected
-              </span>
-            )}
           </div>
-          <DragDropUploadManager
-            mode={
-              selectedSection === 'Videos'
-                ? 'video'
-                : selectedSection === 'AI Lab'
-                  ? [
-                      'Ai Assets',
-                      'AI generated images',
-                      'Product Placement',
-                    ].includes(selectedSubsection)
-                    ? 'image'
-                    : 'video'
-                  : 'image'
-            }
-            category={
-              selectedSection === 'Videos'
-                ? 'test'
-                : selectedSection === 'Graphics'
-                  ? 'graphics'
-                  : selectedSection === 'AI Lab'
-                    ? 'ai_lab'
-                    : selectedSection.toLowerCase()
-            }
-            section={selectedSection}
-            subsection={selectedSubsection}
-            items={items.map((item) => ({
-              ...item,
-              _selected: selectedIds.includes(item._id),
-            }))}
-            onUploadSuccess={handleRefresh}
-            onDeleteSuccess={handleRefresh}
-            // Pass select handlers to DragDropUploadManager if needed
-            renderItem={(item) => (
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(item._id)}
-                  onChange={() => handleSelect(item._id)}
-                />
-                {/* Render the default item UI here, or let DragDropUploadManager handle it */}
-                {/* ...existing item rendering... */}
-              </div>
-            )}
-          />
-        </div>
-      </div>
 
-      {/* Before/After View */}
-      <div
-        className={active === 'Before/After Video' ? 'block mt-4' : 'hidden'}
-      >
+          <div className="flex flex-wrap gap-4 mb-6">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Section
+              </label>
+              <select
+                value={selectedSection}
+                onChange={(e) => {
+                  setSelectedSection(e.target.value)
+                  setSelectedSubsection(FEATURED_PROJECTS_STRUCTURE[e.target.value][0]) // reset
+                  setSelectedIds([])
+                  setSelectAll(false)
+                }}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
+              >
+                {sections.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Sub Section
+              </label>
+              <select
+                value={selectedSubsection}
+                onChange={(e) => {
+                  setSelectedSubsection(e.target.value)
+                  setSelectedIds([])
+                  setSelectAll(false)
+                }}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
+              >
+                {subsections.map((subsec) => (
+                  <option key={subsec} value={subsec}>
+                    {subsec}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div className="mb-4 flex items-center gap-3 bg-red-50 p-3 rounded-lg border border-red-100">
+              <span className="text-sm font-medium text-red-800">
+                {selectedIds.length} items selected
+              </span>
+              <button
+                onClick={handleBulkDelete}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded shrink-0"
+              >
+                Delete Selected
+              </button>
+            </div>
+          )}
+
+          {isLoading && items.length === 0 ? (
+            <div className="text-center py-10 text-slate-500">Loading items...</div>
+          ) : (
+            <DragDropUploadManager
+              mode={selectedSection === 'Graphics' ? 'image' : 'video'}
+              category={currentCategory}
+              subsection={selectedSubsection}
+              items={items}
+              onChange={handleDragChange}
+              onUploadSuccess={triggerRefresh}
+              onDeleteSuccess={triggerRefresh}
+              allowAdd
+              allowEdit
+              allowDelete
+              renderItemExtra={(item) => (
+                <div className="absolute top-2 left-2 z-20">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(item._id || item.id)}
+                    onChange={() => handleSelect(item._id || item.id)}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                </div>
+              )}
+            />
+          )}
+
+          {/* Render the Before/After manager below the main grid only if Videos is selected */}
+          {/* {selectedSection === 'Videos' && <BeforeAfterVideoManager />} */}
+        </div>
+      )}
+      {/* --- BEFORE/AFTER VIEW --- */}
+    {active === 'Before/After Video' && (
+      <div className="mt-4">
         <BeforeAfterVideoManager />
       </div>
+    )}
     </div>
   )
 }

@@ -1,63 +1,45 @@
 // admin/components/managers/AiManager.jsx
 'use client'
 import React, { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import DragDropUploadManager from './DragDropUploadManager'
 import { useToast } from '@/components/ui/toast'
 
 const API_CATEGORY = 'ai_lab'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
-/**
- * AiManager
- * - Shows either "Service Offered" (images/videos) or "Primary Graphics" block based on `activeSub` prop.
- * - Both blocks use DragDropUploadManager in image or video mode with drag-and-drop reordering.
- * - Usage: <AiManager activeSub={mappedSub} />
- *
- * Make sure your sidebar menu sub labels match exactly:
- *  - "Service Offered"
- *  - "Primary Graphics"
- */
-
 export default function AiManager({ activeSub }) {
+  const queryClient = useQueryClient()
   const active = activeSub || 'Primary Graphics'
+
   const [allItems, setAllItems] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
   const { showToast, ToastComponent } = useToast()
 
-  // Fetch all AI Lab items
-  const fetchItems = () => {
-    setLoading(true)
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/category/${API_CATEGORY}?_t=${Date.now()}`,
-      {
+  // --- React Query Fetch ---
+  const { data: serverData, isLoading: loading, isFetching: refreshing } = useQuery({
+    queryKey: ['admin-media-items', API_CATEGORY],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE_URL}/api/admin/media-items/category/${API_CATEGORY}?_t=${Date.now()}`, {
         credentials: 'include',
-      }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.data)) {
-          setAllItems(data.data)
-        } else {
-          showToast('Failed to load AI Lab items', 'error')
-          setAllItems([])
-        }
       })
-      .catch(() => {
-        showToast('Failed to load AI Lab items', 'error')
-        setAllItems([])
-      })
-      .finally(() => setLoading(false))
+      if (!res.ok) throw new Error('Fetch failed')
+      const result = await res.json()
+      if (result.success && Array.isArray(result.data)) return result.data
+      return []
+    },
+    onError: () => showToast('Failed to load AI Lab items', 'error'),
+  })
+
+  // Sync server data naturally
+  useEffect(() => {
+    if (serverData) setAllItems(serverData)
+  }, [serverData])
+
+  const triggerRefresh = () => {
+    queryClient.invalidateQueries(['admin-media-items', API_CATEGORY])
   }
 
-  useEffect(() => {
-    fetchItems()
-  }, [])
-
   // Filter items by subsection and type
-  const serviceOfferedImageItems = allItems.filter(
-    (item) => item.subsection === 'service_offered' && item.type !== 'video'
-  )
   const serviceOfferedVideoItems = allItems.filter(
     (item) => item.subsection === 'service_offered' && item.type === 'video'
   )
@@ -65,14 +47,13 @@ export default function AiManager({ activeSub }) {
     (item) => item.subsection === 'primary_graphics'
   )
 
-  // Save handler (local update only)
+  // Save handler (optimistic local update)
   const handleSave = async (newItems) => {
-    // Only show toast if not a delete (i.e., items count did not decrease)
     if (newItems.length >= allItems.length) {
       showToast('Saved successfully!', 'success')
     }
     setAllItems(newItems)
-    fetchItems()
+    triggerRefresh()
   }
 
   // Multi-select state for primary graphics
@@ -98,7 +79,7 @@ export default function AiManager({ activeSub }) {
       await Promise.all(
         selectedIds.map(async (id) => {
           await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/admin/media-items/${id}?_t=${Date.now()}`,
+            `${API_BASE_URL}/api/admin/media-items/${id}?_t=${Date.now()}`,
             {
               method: 'DELETE',
               credentials: 'include',
@@ -107,15 +88,15 @@ export default function AiManager({ activeSub }) {
         })
       )
       showToast('Deleted selected items', 'success')
+      setSelectedIds([])
+      setSelectMode(false)
+      triggerRefresh()
     } catch (err) {
       showToast('Failed to delete some items', 'error')
     }
-    setSelectedIds([])
-    setSelectMode(false)
-    fetchItems()
   }
 
-  if (loading) {
+  if (loading && allItems.length === 0) {
     return (
       <div className="w-full max-w-7xl mx-auto">
         <h2 className="mb-6 text-3xl font-bold text-slate-900">
@@ -134,16 +115,12 @@ export default function AiManager({ activeSub }) {
           AI Lab — Manager
         </h2>
         <button
-          onClick={() => {
-            setRefreshing(true)
-            fetchItems()
-            setTimeout(() => setRefreshing(false), 800)
-          }}
+          onClick={triggerRefresh}
           className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition-colors duration-150 shadow-sm"
           title="Refresh data"
-          disabled={refreshing}
+          disabled={loading || refreshing}
         >
-          {refreshing ? 'Refreshing...' : '⟳ Refresh'}
+          {loading || refreshing ? 'Refreshing...' : '⟳ Refresh'}
         </button>
       </div>
       {ToastComponent}
@@ -152,23 +129,9 @@ export default function AiManager({ activeSub }) {
       <div className={active === 'Service Offered Videos' ? 'block' : 'hidden'}>
         <div className="mb-4 text-sm text-slate-600">
           <b>Service Offered Video</b> — Upload and manage videos for
-          AI-generated service demos or showcases.
+          AI-generated service showcases.
         </div>
         <div className="mb-6">
-          {/* <div className="font-semibold mb-2 flex items-center gap-2">
-            Videos
-            <button
-              className="ml-2 px-2 py-1 rounded bg-slate-200 hover:bg-slate-300 text-xs border border-slate-300"
-              onClick={() => {
-                setRefreshing(true)
-                fetchItems()
-                setTimeout(() => setRefreshing(false), 800)
-              }}
-              disabled={refreshing}
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
-          </div> */}
           <DragDropUploadManager
             mode="video"
             category="ai_lab"
@@ -176,8 +139,8 @@ export default function AiManager({ activeSub }) {
             items={serviceOfferedVideoItems}
             onChange={handleSave}
             allowAdd={true}
-            onUploadSuccess={fetchItems}
-            onDeleteSuccess={fetchItems}
+            onUploadSuccess={triggerRefresh}
+            onDeleteSuccess={triggerRefresh}
           />
         </div>
       </div>
@@ -189,14 +152,6 @@ export default function AiManager({ activeSub }) {
           generation and previews.
         </div>
         <div className="flex items-center mb-4">
-          {/*
-          <button
-            className="ml-0 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors duration-150 shadow-sm"
-            onClick={() => setSelectMode((m) => !m)}
-          >
-            {selectMode ? 'Cancel Multi-Select' : 'Select Multiple'}
-          </button>
-          */}
           {selectMode && (
             <div className="ml-8 flex items-center gap-2">
               <input
@@ -221,8 +176,8 @@ export default function AiManager({ activeSub }) {
           subsection="primary_graphics"
           items={primaryGraphicsItems}
           onChange={handleSave}
-          onUploadSuccess={fetchItems}
-          onDeleteSuccess={fetchItems}
+          onUploadSuccess={triggerRefresh}
+          onDeleteSuccess={triggerRefresh}
           renderItemExtra={
             selectMode
               ? (item) => (
