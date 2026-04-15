@@ -110,9 +110,9 @@ export default function MediaListManager({
       if (category) {
         let fetchUrl
         if (category === 'affiliated') {
-          fetchUrl = `${API_BASE_URL}/api/admin/affiliates/?_t=${Date.now()}`
+          fetchUrl = `${API_BASE_URL}/api/admin/affiliates/`
         } else {
-          fetchUrl = `${API_BASE_URL}/api/admin/media-items/category/${category}?_t=${Date.now()}`
+          fetchUrl = `${API_BASE_URL}/api/admin/media-items/category/${category}`
         }
         setLoading(true)
         try {
@@ -246,7 +246,7 @@ export default function MediaListManager({
 
         if (category === 'affiliated') {
           // Use affiliates bulk endpoint
-          response = await fetch(`${API_BASE_URL}/api/admin/affiliates/bulk?_t=${Date.now()}`, {
+          response = await fetch(`${API_BASE_URL}/api/admin/affiliates/bulk`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -263,7 +263,7 @@ export default function MediaListManager({
         } else {
           // Use media items bulk endpoint with required subsection
           response = await fetch(
-            `${API_BASE_URL}/api/admin/media-items/bulk/${category}?_t=${Date.now()}`,
+            `${API_BASE_URL}/api/admin/media-items/bulk/${category}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -417,7 +417,7 @@ export default function MediaListManager({
 
         if (category === 'affiliated') {
           // Use affiliates bulk endpoint
-          response = await fetch(`${API_BASE_URL}/api/admin/affiliates/bulk?_t=${Date.now()}`, {
+          response = await fetch(`${API_BASE_URL}/api/admin/affiliates/bulk`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -434,7 +434,7 @@ export default function MediaListManager({
         } else {
           // Use media items bulk endpoint with required subsection
           response = await fetch(
-            `${API_BASE_URL}/api/admin/media-items/bulk/${category}?_t=${Date.now()}`,
+            `${API_BASE_URL}/api/admin/media-items/bulk/${category}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -533,7 +533,7 @@ export default function MediaListManager({
         let response
         if (category === 'affiliated') {
           // Use affiliates bulk endpoint
-          response = await fetch(`${API_BASE_URL}/api/admin/affiliates/bulk?_t=${Date.now()}`, {
+          response = await fetch(`${API_BASE_URL}/api/admin/affiliates/bulk`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -549,7 +549,7 @@ export default function MediaListManager({
           })
         } else {
           response = await fetch(
-            `${API_BASE_URL}/api/admin/media-items/bulk/${category}?_t=${Date.now()}`,
+            `${API_BASE_URL}/api/admin/media-items/bulk/${category}`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -719,7 +719,7 @@ export default function MediaListManager({
                       if (category === 'affiliated') {
                         // Use affiliates bulk endpoint
                         response = await fetch(
-                          `${API_BASE_URL}/api/admin/affiliates/bulk?_t=${Date.now()}`,
+                          `${API_BASE_URL}/api/admin/affiliates/bulk`,
                           {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -741,7 +741,7 @@ export default function MediaListManager({
                       } else {
                         // Use media items bulk endpoint with required subsection
                         response = await fetch(
-                          `${API_BASE_URL}/api/admin/media-items/bulk/${category}?_t=${Date.now()}`,
+                          `${API_BASE_URL}/api/admin/media-items/bulk/${category}`,
                           {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -856,7 +856,7 @@ export default function MediaListManager({
                           const isVideo = uploadFile.type.startsWith('video/')
                           // 1. Request upload URL from backend (pass type)
                           const res = await fetch(
-                            `${API_BASE_URL}/api/admin/media-items/generate-upload-url?_t=${Date.now()}`,
+                            `${API_BASE_URL}/api/admin/media-items/generate-upload-url`,
                             {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
@@ -901,7 +901,7 @@ export default function MediaListManager({
                             })
                             // Save metadata (send guid, backend will construct HLS and poster URLs)
                             const metaRes = await fetch(
-                              `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=${Date.now()}`,
+                              `${API_BASE_URL}/api/admin/media-items/save-metadata`,
                               {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -959,7 +959,7 @@ export default function MediaListManager({
                             })
                             // Save metadata in backend
                             const metaRes = await fetch(
-                              `${API_BASE_URL}/api/admin/media-items/save-metadata?_t=${Date.now()}`,
+                              `${API_BASE_URL}/api/admin/media-items/save-metadata`,
                               {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -1180,7 +1180,7 @@ export default function MediaListManager({
                     const form = new FormData()
                     form.append('file', replaceFile)
                     const resp = await fetch(
-                      `${API_BASE_URL}/api/admin/media-items/${editing.id}/replace?_t=${Date.now()}`,
+                      `${API_BASE_URL}/api/admin/media-items/${editing.id}/replace`,
                       { method: 'POST', credentials: 'include', body: form },
                     )
                     const json = await resp.json().catch(() => null)
@@ -1205,7 +1205,7 @@ export default function MediaListManager({
                     const form2 = new FormData()
                     form2.append('poster', replacePosterFile)
                     const resp2 = await fetch(
-                      `${API_BASE_URL}/api/admin/media-items/${editing.id}/replace-poster?_t=${Date.now()}`,
+                      `${API_BASE_URL}/api/admin/media-items/${editing.id}/replace-poster`,
                       { method: 'POST', credentials: 'include', body: form2 },
                     )
                     const json2 = await resp2.json().catch(() => null)
