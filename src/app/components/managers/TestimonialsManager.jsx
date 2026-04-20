@@ -554,7 +554,7 @@ export default function TestimonialsManager() {
                       readOnly={!t._editing}
                       className="w-20 rounded border px-2 py-1 text-right"
                     />
-                    <div className="text-sm text-slate-600">%</div>
+                    {/* <div className="text-sm text-slate-600">%</div> */}
                     {errors[t.id]?.editing_time && (
                       <div className="text-xs text-red-600 ml-2">
                         {errors[t.id].editing_time}
@@ -577,7 +577,7 @@ export default function TestimonialsManager() {
                         readOnly={!t._editing}
                         className="w-20 rounded border px-2 py-1 text-right"
                       />
-                      <div className="text-sm text-slate-600 ml-2">k</div>
+                      {/* <div className="text-sm text-slate-600 ml-2">k</div> */}
                       {errors[t.id]?.cost && (
                         <div className="text-xs text-red-600 ml-2">
                           {errors[t.id].cost}

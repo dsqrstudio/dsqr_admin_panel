@@ -47,7 +47,7 @@ export default function DragDropUploadManager({
   onDeleteSuccess,
 }) {
   console.log('[DragDropUploadManager] items:', items)
-  const toSafeUrl = useCallback((url) => (url ? encodeURI(url) : url), [])
+  const toSafeUrl = useCallback((url) => url, [])
   const [draggedIndex, setDraggedIndex] = useState(null)
   const [dragOverIndex, setDragOverIndex] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -324,27 +324,40 @@ export default function DragDropUploadManager({
 
     // Make API call to save order in the backend
     try {
-      const orderIds = reorderedItems.map(item => item._id || item.id).filter(Boolean)
-      console.log('[DragDropUploadManager] Reordering items with IDs:', orderIds)
-      
+      const orderIds = reorderedItems
+        .map((item) => item._id || item.id)
+        .filter(Boolean)
+      console.log(
+        '[DragDropUploadManager] Reordering items with IDs:',
+        orderIds,
+      )
+
       if (orderIds.length > 0) {
-        console.log(`[DragDropUploadManager] Sending POST to ${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=${Date.now()}`)
-        const res = await fetch(`${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=${Date.now()}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ order: orderIds }),
-        })
+        console.log(
+          `[DragDropUploadManager] Sending POST to ${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=${Date.now()}`,
+        )
+        const res = await fetch(
+          `${API_BASE_URL}/api/admin/reorder/${modelDbName}?_t=${Date.now()}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ order: orderIds }),
+          },
+        )
         const data = await res.json()
         console.log('[DragDropUploadManager] Reorder API response:', data)
-        
+
         if (data.success) {
           showToast('Reorder successful!', 'success')
           if (typeof onUploadSuccess === 'function') {
             setTimeout(() => onUploadSuccess(), 500)
           }
         } else {
-          showToast(`Reorder failed: ${data.message || 'Unknown error'}`, 'error')
+          showToast(
+            `Reorder failed: ${data.message || 'Unknown error'}`,
+            'error',
+          )
         }
       } else {
         console.warn('[DragDropUploadManager] No valid IDs found to reorder!')
