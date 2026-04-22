@@ -39,7 +39,10 @@ export default function ClientLogosManager({ title = 'Client Logos' }) {
 
   const handleOrderChange = (newItems) => {
     setItems(newItems)
-    triggerRefresh()
+    // Delay refetch to allow backend cache invalidation
+    setTimeout(() => {
+      triggerRefresh()
+    }, 400)
   }
 
   // Multi-select state

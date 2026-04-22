@@ -230,7 +230,7 @@ export default function OurWorkManager({ activeSub }) {
         }
       }
       setDeleteTarget(null)
-      fetchVideos()
+      setTimeout(() => fetchVideos(), 600)
     }
 
     // Replace before/after video
@@ -263,7 +263,7 @@ export default function OurWorkManager({ activeSub }) {
       }
       setReplaceId(null)
       setReplaceType(null)
-      fetchVideos()
+      setTimeout(() => fetchVideos(), 600)
     }
 
     // Fetch all before/after videos as separate docs, group by pairId
@@ -337,7 +337,7 @@ export default function OurWorkManager({ activeSub }) {
       } finally {
         setUploadingId(null)
         setUploadingType(null)
-        fetchVideos()
+        setTimeout(() => fetchVideos(), 600)
       }
     }
 
@@ -380,7 +380,7 @@ export default function OurWorkManager({ activeSub }) {
       } finally {
         setUploadingId(null)
         setUploadingType(null)
-        fetchVideos()
+        setTimeout(() => fetchVideos(), 600)
       }
     }
 
